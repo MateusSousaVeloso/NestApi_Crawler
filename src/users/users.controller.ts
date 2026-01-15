@@ -1,34 +1,52 @@
-import { Controller, Post, Get, Patch, Body, Param, UseGuards, Req, NotFoundException } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Delete, Body, Param, UseGuards, Req, NotFoundException, HttpCode, HttpStatus } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody, ApiParam } from '@nestjs/swagger';
 import { UsersService } from './users.service';
-import { CreateUserDto, UpdateUserDto, UpdateSubscriptionDto } from './users.dto';
+import { CreateUserDto, PreferencesDTO } from './users.dto';
 import { AccessTokenGuard } from '../common/guards/accessToken.guard';
 
+@ApiTags('Users')
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
-  // 6.1.1 Criar Novo Usuário (Sign-Up)
-  @Post()
-  async create(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.create(createUserDto);
-  }
-
-  // 6.1.2 Consultar Perfil Logado
   @UseGuards(AccessTokenGuard)
+  @ApiBearerAuth()
   @Get('me')
+  @ApiOperation({ summary: 'Obter dados do perfil logado' })
+  @ApiResponse({ status: 200, description: 'Dados do usuário retornados.' })
+  @ApiResponse({ status: 401, description: 'Não autorizado.' })
   async findMe(@Req() req) {
-    return this.usersService.findById(req.user.sub);
+    return this.usersService.findById(req.user.id);
   }
 
-  // 6.1.3 Atualizar Dados
   @UseGuards(AccessTokenGuard)
+  @ApiBearerAuth()
   @Patch('me')
-  async updateMe(@Req() req, @Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(req.user.sub, updateUserDto);
+  @ApiOperation({ summary: 'Atualizar preferências do usuário' })
+  @ApiResponse({ status: 200, description: 'Preferências atualizadas com sucesso.' })
+  @ApiResponse({ status: 401, description: 'Não autorizado.' })
+  @ApiResponse({ status: 404, description: 'Nenhum dado enviado para atualização.' })
+  @ApiBody({ type: PreferencesDTO })
+  async update(@Req() req, @Body() body: PreferencesDTO) {
+    if (!body.preferences) throw new NotFoundException('Nenhum dado para atualizar.');
+    return this.usersService.update(req.user.id, { preferences: body.preferences });
   }
 
-  // 6.2.2 Verificação de Status (Check-in n8n)
-  @Get('check/:phone_number')
-  async checkStatus(@Param('phone_number') phoneNumber: string) {
-    return this.usersService.checkSubscriptionStatus(phoneNumber);
+  @UseGuards(AccessTokenGuard)
+  @ApiBearerAuth()
+  @Delete('me')
+  @HttpCode(HttpStatus.NO_CONTENT) // 204
+  @ApiOperation({ summary: 'Excluir a própria conta' })
+  @ApiResponse({ status: 204, description: 'Conta excluída com sucesso.' })
+  @ApiResponse({ status: 401, description: 'Não autorizado.' })
+  async delete(@Req() req) {
+    return this.usersService.delete(req.user.id);
   }
-} 
+
+  // @Get('check/:phone_number')
+  // @ApiOperation({ summary: 'Verificar status da assinatura (Bot/n8n)' })
+  // @ApiParam({ name: 'phone_number', example: '+55 (11) 91234-1234' })
+  // @ApiResponse({ status: 200, description: 'Retorna status da assinatura e existência do usuário.' })
+  // async checkStatus(@Param('phone_number') phoneNumber: string) {
+  //   return this.usersService.checkSubscriptionStatus(phoneNumber);
+  // }
+}

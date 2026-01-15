@@ -1,10 +1,9 @@
-import { Body, Controller, Delete, Get, HttpStatus, NotFoundException, Param, Patch, Post, Req, Res, UseGuards } from '@nestjs/common';
-import { AuthDto, VerifyDTO } from './auth.dto';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, NotFoundException, Param, Patch, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { AuthDto } from './auth.dto';
 import { AuthService } from './auth.service';
 import { AccessTokenGuard } from 'src/common/guards/accessToken.guard';
 import { RefreshTokenGuard } from 'src/common/guards/refreshToken.guard';
-import { SignUpCompanyDto } from './auth.dto';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 import { CreateUserDto } from 'src/users/users.dto';
 
 @ApiTags('Auth')
@@ -13,47 +12,31 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('signup')
-  @ApiOperation({ summary: 'Cria um usuário.' })
+  @ApiOperation({ summary: 'Registrar um novo usuário' })
+  @ApiResponse({ status: 201, description: 'Usuário criado com sucesso.' })
+  @ApiResponse({ status: 400, description: 'Dados inválidos.' })
+  @ApiResponse({ status: 409, description: 'Telefone ou Email já cadastrados.' })
+  @ApiBody({ type: CreateUserDto })
   async signup(@Body() body: CreateUserDto) {
     return await this.authService.signup(body);
   }
 
   @Post('login')
-  @ApiOperation({ summary: 'Loga um usuário em sua conta.' })
+  @HttpCode(HttpStatus.OK) // 200
+  @ApiOperation({ summary: 'Autenticar usuário e obter tokens' })
+  @ApiResponse({ status: 200, description: 'Login realizado com sucesso.' })
+  @ApiResponse({ status: 401, description: 'Credenciais inválidas.' })
+  @ApiBody({ type: AuthDto })
   async login(@Body() body: AuthDto) {
     return await this.authService.login(body);
   }
 
   @UseGuards(AccessTokenGuard)
-  @Post('verify')
-  @ApiOperation({ summary: 'Verifica o número da verificação de 2 etapas.' })
-  async verify(@Body() body: VerifyDTO, @Res({ passthrough: true }) res, @Req() req) {
-    const { accessToken, refreshToken } = await this.authService.verify(req.user['id'], body);
-
-    res
-      .cookie(process.env.ACCESS_TOKEN, accessToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'Lax',
-        maxAge: 30 * 60 * 1000,
-      })
-      .cookie(process.env.REFRESH_TOKEN, refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'Lax',
-      })
-      .status(200);
-  }
-
-  @Post('signup/company')
-  @ApiOperation({ summary: 'Loga o usuário em uma nova empresa.' })
-  async signupCompany(@Body() body: SignUpCompanyDto) {
-    return await this.authService.signupCompany(body);
-  }
-
-  @UseGuards(AccessTokenGuard)
   @Get('logout')
-  @ApiOperation({ summary: 'Desloga o usuário.' })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Encerrar sessão (Logout)' })
+  @ApiResponse({ status: 200, description: 'Logout realizado com sucesso.' })
+  @ApiResponse({ status: 401, description: 'Não autorizado.' })
   async logout(@Res({ passthrough: true }) res, @Req() req) {
     await this.authService.logout(req.user['id']);
 
@@ -62,7 +45,10 @@ export class AuthController {
 
   @UseGuards(RefreshTokenGuard)
   @Get('refresh')
-  @ApiOperation({ summary: 'Gera novos tokens de acesso baseado no refresh token.' })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Renovar Access Token usando Refresh Token' })
+  @ApiResponse({ status: 200, description: 'Tokens renovados com sucesso.' })
+  @ApiResponse({ status: 401, description: 'Refresh token inválido ou expirado.' })
   async refreshTokens(@Res({ passthrough: true }) res, @Req() req) {
     const { accessToken, refreshToken } = await this.authService.refreshTokens(req['user'].id);
     res

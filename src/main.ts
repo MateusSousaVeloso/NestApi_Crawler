@@ -14,8 +14,8 @@ async function bootstrap() {
   app.useGlobalFilters(new PrismaExceptionFilter(), new AllExceptionsFilter());
 
   const config = new DocumentBuilder()
-    .setTitle('Connect API')
-    .setDescription('Documentação da API Connect')
+    .setTitle('Crawler API')
+    .setDescription('Documentação da API Crawler para busca de passagens aéreas com milhas.')
     .setVersion('1.0')
     .addBearerAuth({
       type: 'http',

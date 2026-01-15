@@ -1,6 +1,6 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
+  output   = "./generated/client"
 }
 
 datasource db {
@@ -9,20 +9,45 @@ datasource db {
 
 model User {
   id              String   @id @default(uuid())
-  full_name       String
+  name            String
   phone_number    String   @unique
-  email           String?  @unique
-  password        String?  // Opcional pois pode vir via WhatsApp
+  email           String   @unique
+  password        String
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-  
-  // Preferências e Assinatura armazenados como JSON para flexibilidade
-  preferences     Json?    // { "loyalty_programs": [], "document_cpf": "..." }
-  subscription    Json?    // { "plan": "premium", "status": "active", "expires_at": "..." }
 
+  preferences     Json?    // { "loyalty_programs": [], "document_cpf": "..." }
+
+  subscriptions UserSubscription[]
   histories       History[]
 
   @@map("users")
+}
+
+model SubscriptionPlan {
+  id           Int      @id
+  name         String   // Ex: "Premium Mensal"
+  price        Decimal  @db.Decimal(10, 2) 
+  durationDays Int      
+
+  users        UserSubscription[]
+  @@map("subscription_plans")
+}
+
+model UserSubscription {
+  id            String   @id @default(uuid())
+  
+  payment_date  DateTime @default(now()) 
+  end_date      DateTime // Data final (calculada: payment_date + plan.durationDays)
+  status        String   @default("active") // 'active', 'expired', 'cancelled'
+
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  planId        Int
+  plan          SubscriptionPlan @relation(fields: [planId], references: [id])
+
+  @@map("user_subscriptions")
 }
 
 model History {

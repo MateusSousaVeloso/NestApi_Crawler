@@ -8,106 +8,103 @@ export class UsersService {
   constructor(private prisma: PrismaService) {}
 
   async create(data: CreateUserDto) {
-    const existingUser = await this.prisma.user.findUnique({
-      where: { phone_number: data.phone_number },
-    });
-    if (existingUser) throw new ConflictException('Número de telefone já cadastrado.');
-
-    const hashedPassword = data.password ? await bcrypt.hash(data.password, 10) : undefined;
+    const hashedPassword = await bcrypt.hash(data.password, 12);
     if (data.password && !hashedPassword) throw new ConflictException('Erro ao processar a senha. Tente novamente mais tarde.');
 
     const user = await this.prisma.user.create({
       data: {
-        full_name: data.full_name,
+        name: data.name,
         phone_number: data.phone_number,
         email: data.email,
         password: hashedPassword,
-        preferences: data.initial_preferences || {},
-        subscription: { status: 'pending_payment' }, 
+        preferences: data.preferences || {},
       },
+      omit: { password: true },
     });
 
-    return {
-      data: {  
-        user_id: user.id,
-        status: 'pending_payment' 
-      },
-      message: 'Usuário criado com sucesso.',
-    };
+    return user;
   }
 
   async findById(id: string) {
-    const user = await this.prisma.user.findUnique({ where: { id } });
-    if (!user) throw new NotFoundException('User not found');
+    const user = await this.prisma.user.findUnique({ where: { id }, omit: { password: true } });
+    if (!user) throw new NotFoundException('Usuário não existe.');
+    return user;
+  }
 
-    // Mapear retorno conforme doc
-    return {
-      id: user.id,
-      full_name: user.full_name,
-      email: user.email,
-      phone: user.phone_number,
-      subscription: user.subscription,
-      preferences: user.preferences,
-    };
+  async findForAuth(email: string) {
+    const user = await this.prisma.user.findUnique({ where: { email }, select: { id: true, email: true, password: true } });
+    if (!user) throw new NotFoundException('Usuário não existe.');
+    return user;
   }
 
   async update(id: string, data: UpdateUserDto) {
-    // Lógica de merge de JSON para preferências seria ideal aqui
-    return this.prisma.user.update({
+    const userExists = await this.prisma.user.findUnique({ where: { id } });
+    if (!userExists) throw new NotFoundException('Usuário não existe.');
+
+    if (data.password) {
+      data.password = await bcrypt.hash(data.password, 12);
+    }
+    if (data.preferences) {
+      const currentPrefs = (userExists.preferences as Record<string, any>) || {};
+      data.preferences = { ...currentPrefs, ...data.preferences };
+    }
+    const updatedUser = await this.prisma.user.update({
       where: { id },
-      data: { preferences: data.preferences }, // Simplificado (sobrescreve)
-    });
-  }
-
-  async checkSubscriptionStatus(phone_number: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { phone_number },
-    });
-
-    if (!user) {
-      return { exists: false };
-    }
-
-    const sub: any = user.subscription || {};
-    const expiresAt = sub.expires_at ? new Date(sub.expires_at) : null;
-    const now = new Date();
-
-    // Lógica simples de expiração
-    const isActive = sub.status === 'active' && expiresAt && expiresAt > now;
-    const daysRemaining = expiresAt ? Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 3600 * 24)) : 0;
-
-    if (isActive) {
-      return {
-        user_id: user.id,
-        exists: true,
-        subscription: {
-          is_active: true,
-          status: sub.status,
-          days_remaining: daysRemaining,
-        },
-        context: {
-          last_interaction: new Date().toISOString(), // Exemplo
-          user_name: user.full_name.split(' ')[0],
-        },
-      };
-    } else {
-      return {
-        user_id: user.id,
-        exists: true,
-        subscription: {
-          is_active: false,
-          status: 'past_due',
-          block_reason: 'payment_required',
-        },
-      };
-    }
-  }
-
-    async findForAuth(email: string) {
-    return this.prisma.user.findUnique({
-      where: { email },
+      data: {
+        ...data,
+      },
       omit: { password: true },
     });
+    return updatedUser;
   }
 
+  async delete(id: string) {
+    const userExists = await this.prisma.user.findUnique({ where: { id } });
+    if (!userExists) throw new NotFoundException('Usuário não existe.');
+
+    return this.prisma.user.delete({
+      where: { id },
+    });
+  }
+
+  // async checkSubscriptionStatus(email: string) {
+  //   const user = await this.prisma.user.findUnique({
+  //     where: { email },
+  //   });
+  //   if (!user) throw new NotFoundException('Usuário não existe.');
+
+  //   const sub: any = user.subscription || {};
+  //   const expiresAt = sub.expires_at ? new Date(sub.expires_at) : null;
+  //   const now = new Date();
+
+  //   // Lógica simples de expiração
+  //   const isActive = sub.status === 'active' && expiresAt && expiresAt > now;
+  //   const daysRemaining = expiresAt ? Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 3600 * 24)) : 0;
+
+  //   if (!isActive) {
+  //     return {
+  //       user_id: user.id,
+  //       exists: true,
+  //       subscription: {
+  //         is_active: false,
+  //         status: 'past_due',
+  //         block_reason: 'payment_required',
+  //       },
+  //     };
+  //   }
+
+  //   return {
+  //     user_id: user.id,
+  //     exists: true,
+  //     subscription: {
+  //       is_active: true,
+  //       status: sub.status,
+  //       days_remaining: daysRemaining,
+  //     },
+  //     context: {
+  //       last_interaction: new Date().toISOString(),
+  //       user_name: user.name.split(' ')[0],
+  //     },
+  //   };
+  // }
 }

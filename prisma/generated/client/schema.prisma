@@ -1,0 +1,65 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  phone_number String   @unique
+  email        String   @unique
+  password     String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  preferences Json? // { "loyalty_programs": [], "document_cpf": "..." }
+
+  subscriptions UserSubscription[]
+  histories     History[]
+
+  @@map("users")
+}
+
+model SubscriptionPlan {
+  id           Int     @id
+  name         String // Ex: "Premium Mensal"
+  price        Decimal @db.Decimal(10, 2)
+  durationDays Int
+
+  users UserSubscription[]
+
+  @@map("subscription_plans")
+}
+
+model UserSubscription {
+  id String @id @default(uuid())
+
+  payment_date DateTime @default(now())
+  end_date     DateTime // Data final (calculada: payment_date + plan.durationDays)
+  status       String   @default("active") // 'active', 'expired', 'cancelled'
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  planId Int
+  plan   SubscriptionPlan @relation(fields: [planId], references: [id])
+
+  @@map("user_subscriptions")
+}
+
+model History {
+  id        String   @id @default(uuid())
+  role      String // 'user', 'assistant', 'system'
+  content   String   @db.Text
+  metadata  Json? // { "tokens_used": 150 }
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@map("histories")
+}
