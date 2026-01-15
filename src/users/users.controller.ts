@@ -1,7 +1,7 @@
-import { Controller, Post, Get, Patch, Delete, Body, Param, UseGuards, Req, NotFoundException, HttpCode, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody, ApiParam } from '@nestjs/swagger';
+import { Controller, Get, Patch, Delete, Body, UseGuards, Req, NotFoundException, HttpCode, HttpStatus } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { UsersService } from './users.service';
-import { CreateUserDto, PreferencesDTO } from './users.dto';
+import { PreferencesDTO } from './users.dto';
 import { AccessTokenGuard } from '../common/guards/accessToken.guard';
 
 @ApiTags('Users')

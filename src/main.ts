@@ -11,7 +11,7 @@ async function bootstrap() {
   app.use(cookieParser());
   app.enableCors({ origin: 'http://localhost:3000', credentials: true });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
-  app.useGlobalFilters(new PrismaExceptionFilter(), new AllExceptionsFilter());
+  app.useGlobalFilters(new AllExceptionsFilter, new PrismaExceptionFilter());
 
   const config = new DocumentBuilder()
     .setTitle('Crawler API')

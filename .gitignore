@@ -2,7 +2,8 @@
 /dist
 /node_modules
 /build
-/generated
+prisma/generated
+prisma/generated/client
 
 # Logs
 logs

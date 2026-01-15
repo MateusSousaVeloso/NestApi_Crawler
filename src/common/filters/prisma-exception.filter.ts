@@ -14,13 +14,19 @@ export class PrismaExceptionFilter implements ExceptionFilter {
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message = 'Ocorreu um erro interno no servidor.';
 
-    this.logger.error(`Erro do Prisma: ${exception.code} em ${request.url}`, exception.message);
+    this.logger.error(`Erro Prisma em ${request.method} ${request.url}: ${exception.code}`);
 
     switch (exception.code) {
       case 'P2002': {
         status = HttpStatus.CONFLICT; // 409
-        const target = (exception.meta?.target as string[])?.join(', ');
-        message = `Um registro com este ${target} já existe.`;
+        let target: string | undefined;
+        const meta = exception.meta as any;
+        const adapterFields = meta?.driverAdapterError?.cause?.constraint?.fields;
+
+        if (Array.isArray(adapterFields)) target = adapterFields.join(', ');
+        else target = adapterFields;
+
+        message = target ? `Um registro com este ${target} já existe.` : 'Um registro já existe utilizando esses campos.';
         break;
       }
       case 'P2025': {
@@ -29,7 +35,7 @@ export class PrismaExceptionFilter implements ExceptionFilter {
         break;
       }
       default:
-        status = HttpStatus.INTERNAL_SERVER_ERROR;
+        status = HttpStatus.INTERNAL_SERVER_ERROR; // 500
         message = `Erro no banco de dados. (Código: ${exception.code})`;
         break;
     }
@@ -40,6 +46,7 @@ export class PrismaExceptionFilter implements ExceptionFilter {
       error: HttpStatus[status],
       timestamp: new Date().toISOString(),
       path: request.url,
+      method: request.method
     });
   }
 }

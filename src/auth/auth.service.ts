@@ -1,9 +1,9 @@
 import { BadRequestException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
-import { UsersService } from 'src/users/users.service';
+import { UsersService } from '../users/users.service';
 import bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { AuthDto } from './auth.dto';
-import { CreateUserDto } from 'src/users/users.dto';
+import { CreateUserDto } from '../users/users.dto';
 import { JWT_CONSTANTS_TOKEN } from './constants';
 import type { JwtConstants } from './constants';
 

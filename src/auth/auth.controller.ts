@@ -1,10 +1,10 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, NotFoundException, Param, Patch, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { AuthDto } from './auth.dto';
 import { AuthService } from './auth.service';
-import { AccessTokenGuard } from 'src/common/guards/accessToken.guard';
-import { RefreshTokenGuard } from 'src/common/guards/refreshToken.guard';
+import { AccessTokenGuard } from '../common/guards/accessToken.guard';
+import { RefreshTokenGuard } from '../common/guards/refreshToken.guard';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
-import { CreateUserDto } from 'src/users/users.dto';
+import { CreateUserDto } from '../users/users.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
