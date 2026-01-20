@@ -13,7 +13,7 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService,
     @Inject(JWT_CONSTANTS_TOKEN) private constants: JwtConstants
-  ) {}
+  ) {}  
 
   async signup(data: CreateUserDto) {
     const user = await this.usersService.create(data);

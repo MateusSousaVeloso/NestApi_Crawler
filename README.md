@@ -29,6 +29,8 @@
 
 ```bash
 $ npm install
+$ npx prisma db generate
+$ npx prisma db seed (demora mas vai)
 ```
 
 ## Compile and run the project

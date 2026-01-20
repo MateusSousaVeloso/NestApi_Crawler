@@ -8,7 +8,7 @@ datasource db {
 }
 
 model User {
-  id              String   @id @default(uuid())
+  id              String @id @default(dbgenerated("gen_random_uuid()"))
   name            String
   phone_number    String   @unique
   email           String   @unique
@@ -18,10 +18,23 @@ model User {
 
   preferences     Json?    // { "loyalty_programs": [], "document_cpf": "..." }
 
-  subscriptions UserSubscription[]
+  subscriptions   UserSubscription[]
   histories       History[]
+  employees       Employee[]
 
   @@map("users")
+}
+
+model Employee {
+  id              String @id @default(dbgenerated("gen_random_uuid()"))
+  name            String
+  phone_number    String   @unique
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user_phone      String?  @unique
+  user            User?     @relation(fields: [user_phone], references: [phone_number], onDelete: Cascade, onUpdate: Cascade)
+  
+  @@map("employee")
 }
 
 model SubscriptionPlan {
@@ -35,14 +48,14 @@ model SubscriptionPlan {
 }
 
 model UserSubscription {
-  id            String   @id @default(uuid())
-  
+  id            String @id @default(dbgenerated("gen_random_uuid()"))
+
   payment_date  DateTime @default(now()) 
   end_date      DateTime // Data final (calculada: payment_date + plan.durationDays)
   status        String   @default("active") // 'active', 'expired', 'cancelled'
 
   userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   planId        Int
   plan          SubscriptionPlan @relation(fields: [planId], references: [id])
@@ -51,14 +64,28 @@ model UserSubscription {
 }
 
 model History {
-  id        String   @id @default(uuid())
-  role      String   // 'user', 'assistant', 'system'
-  content   String   @db.Text
-  metadata  Json?    // { "tokens_used": 150 }
-  createdAt DateTime @default(now())
-  
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  id String @id @default(dbgenerated("gen_random_uuid()"))
+  session_id String
+  message    Json
+  createdAt  DateTime @default(now())
+  user User @relation(fields: [session_id], references: [phone_number], onDelete: Cascade, onUpdate: Cascade)
 
   @@map("histories")
+  @@index([session_id]) 
+}
+
+model Product {
+  id             String   @id @default(dbgenerated("gen_random_uuid()"))
+  product_name   String   
+  sku            String   @unique 
+  price          Decimal  @db.Decimal(10, 2)
+  product_url    String  
+  image_url      String   
+  ean_code       String?
+  category       String
+  is_available   Boolean  @default(true)
+  crawledAt      DateTime @default(now()) 
+  createdAt      DateTime @default(now())
+
+  @@map("products")
 }

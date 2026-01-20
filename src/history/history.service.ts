@@ -5,26 +5,23 @@ import { PrismaService } from '../database/prisma.service';
 export class HistoryService {
   constructor(private prisma: PrismaService) {}
 
-  async getHistory(userId: string, limit: number) {
+  async getHistory(id: string, limit: number) {
     return this.prisma.history.findMany({
-      where: { userId },
+      where: { id },
       orderBy: { createdAt: 'desc' },
       take: limit,
       select: {
-        role: true,
-        content: true,
+        message: true,
         createdAt: true,
       }
     });
   }
 
-  async logMessage(data: { user_id: string; role: string; content: string; metadata?: any }) {
+  async logMessage(data: { id: string; message: string}) {
     await this.prisma.history.create({
       data: {
-        userId: data.user_id,
-        role: data.role,
-        content: data.content,
-        metadata: data.metadata || {},
+        session_id: data.id,
+        message: data.message,
       }
     });
     
