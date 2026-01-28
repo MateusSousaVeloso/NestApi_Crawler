@@ -74,18 +74,3 @@ model History {
   @@index([session_id]) 
 }
 
-model Product {
-  id             String   @id @default(dbgenerated("gen_random_uuid()"))
-  product_name   String   
-  sku            String   @unique 
-  price          Decimal  @db.Decimal(10, 2)
-  product_url    String  
-  image_url      String   
-  ean_code       String?
-  category       String
-  is_available   Boolean  @default(true)
-  crawledAt      DateTime @default(now()) 
-  createdAt      DateTime @default(now())
-
-  @@map("products")
-}
