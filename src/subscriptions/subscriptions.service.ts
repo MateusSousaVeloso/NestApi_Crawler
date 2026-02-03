@@ -5,16 +5,16 @@ import { PrismaService } from '../database/prisma.service';
 export class SubscriptionsService {
   constructor(private prisma: PrismaService) {}
 
-  async subscribe(userId: string, planId: number) {
+  async subscribe(userPhone: string, planId: number) {
     const plan = await this.prisma.subscriptionPlan.findUnique({
       where: { id: planId },
     });
     if (!plan) throw new NotFoundException('Plano não encontrado.');
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.prisma.user.findUnique({ where: { phone_number: userPhone } });
     if (!user) throw new NotFoundException('Usuário não existe.');
 
     await this.prisma.userSubscription.deleteMany({
-      where: { userId, status: 'active' },
+      where: { userPhone, status: 'active' },
     });
 
     const paymentDate = new Date();
@@ -23,7 +23,7 @@ export class SubscriptionsService {
 
     const subscription = await this.prisma.userSubscription.create({
       data: {
-        userId,
+        userPhone,
         planId: plan.id,
         payment_date: paymentDate,
         end_date: endDate,
@@ -37,10 +37,10 @@ export class SubscriptionsService {
     return subscription;
   }
 
-  async getMySubscription(userId: string) {
+  async getMySubscription(userPhone: string) {
     const subscription = await this.prisma.userSubscription.findFirst({
       where: {
-        userId,
+        userPhone,
         status: 'active',
         end_date: { gt: new Date() },
       },
@@ -52,9 +52,9 @@ export class SubscriptionsService {
     return subscription;
   }
 
-  async cancelSubscription(userId: string) {
+  async cancelSubscription(userPhone: string) {
     const activeSub = await this.prisma.userSubscription.findFirst({
-      where: { userId, status: 'active' },
+      where: { userPhone, status: 'active' },
     });
     if (!activeSub) throw new NotFoundException('Nenhuma assinatura ativa para cancelar.');
 

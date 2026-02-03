@@ -21,7 +21,7 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
-  console.log('🌱 Iniciando seed dos planos e produtos');
+  console.log('🌱 Iniciando seed dos planos e usuário de teste');
 
   const plans = [
     {
@@ -59,9 +59,6 @@ async function main() {
       phone_number: '5511949381549',
       email: 'usuario@email.com',
       password: 'SenhaForte123!',
-      preferences: {
-        airline: 'LATAM',
-      },
     },
   ];
 
@@ -72,23 +69,6 @@ async function main() {
       create: user,
     });
   }
-
-  const employees = [
-    {
-      name: 'Lucas Batista de Sousa',
-      phone_number: '5511973748821',
-      user_phone: '5511949381549',
-    },
-  ];
-
-  for (const employee of employees) {
-    await prisma.employee.upsert({
-      where: { phone_number: employee.phone_number },
-      update: employee,
-      create: employee,
-    });
-  }
-
   console.log('✅ Planos criados/atualizados com sucesso!');
 }
 

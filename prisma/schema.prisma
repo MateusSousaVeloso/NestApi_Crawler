@@ -16,25 +16,11 @@ model User {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  preferences     Json?    // { "loyalty_programs": [], "document_cpf": "..." }
-
+  tripInfo        TripInfo?
   subscriptions   UserSubscription[]
   histories       History[]
-  employees       Employee[]
 
   @@map("users")
-}
-
-model Employee {
-  id              String @id @default(dbgenerated("gen_random_uuid()"))
-  name            String
-  phone_number    String   @unique
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  user_phone      String?  @unique
-  user            User?     @relation(fields: [user_phone], references: [phone_number], onDelete: Cascade, onUpdate: Cascade)
-  
-  @@map("employee")
 }
 
 model SubscriptionPlan {
@@ -54,8 +40,8 @@ model UserSubscription {
   end_date      DateTime // Data final (calculada: payment_date + plan.durationDays)
   status        String   @default("active") // 'active', 'expired', 'cancelled'
 
-  userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  userPhone     String   @unique @db.VarChar(20)
+  user          User     @relation(fields: [userPhone], references: [phone_number], onDelete: Cascade, onUpdate: Cascade)
 
   planId        Int
   plan          SubscriptionPlan @relation(fields: [planId], references: [id])
@@ -72,5 +58,26 @@ model History {
 
   @@map("histories")
   @@index([session_id]) 
+}
+
+enum TipoBusca {
+  preco
+  custo_beneficio
+}
+
+model TripInfo {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  origin        String?   @db.VarChar(10)
+  destination   String?   @db.VarChar(10)
+  departureDate DateTime? @db.Date
+  tipoBusca     TipoBusca?
+  
+  createdAt     DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @default(now()) @db.Timestamptz(6)
+
+  userPhone     String   @unique @db.VarChar(20)
+  user          User     @relation(fields: [userPhone], references: [phone_number], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("trip_info")
 }
 

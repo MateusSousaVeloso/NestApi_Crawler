@@ -17,7 +17,6 @@ export class UsersService {
         phone_number: data.phone_number,
         email: data.email,
         password: hashedPassword,
-        preferences: data.preferences || {},
       },
       omit: { password: true },
     });
@@ -44,10 +43,7 @@ export class UsersService {
     if (data.password) {
       data.password = await bcrypt.hash(data.password, 12);
     }
-    if (data.preferences) {
-      const currentPrefs = (userExists.preferences as Record<string, any>) || {};
-      data.preferences = { ...currentPrefs, ...data.preferences };
-    }
+
     const updatedUser = await this.prisma.user.update({
       where: { id },
       data: {
