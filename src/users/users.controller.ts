@@ -5,7 +5,7 @@ import { UpdateUserDto } from './users.dto';
 import { AccessTokenGuard } from '../common/guards/accessToken.guard';
 
 @ApiTags('Users')
-@Controller('users')
+@Controller('user')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
   @UseGuards(AccessTokenGuard)
