@@ -3,7 +3,7 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class AuthDto {
   @ApiProperty({ 
-    example: 'usuario@email.com', 
+    example: 'mateuspantera2409@gmail.com', 
     description: 'Email cadastrado do usuário' 
   })
   @IsNotEmpty({ message: 'Email não pode ser vazio.' })
@@ -12,12 +12,10 @@ export class AuthDto {
   email: string;
 
   @ApiProperty({ 
-    example: 'SenhaForte123!', 
+    example: 'Mateus-2409', 
     description: 'Senha de acesso',
-    minLength: 6 
   })
   @IsNotEmpty({ message: 'Senha não pode ser vazia.' })
   @IsString({ message: 'Senha deve ser um texto.' })
-  @MinLength(6, { message: 'A senha deve ter no mínimo 6 caracteres.' })
   password: string;
 }
