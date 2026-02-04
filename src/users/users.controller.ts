@@ -1,7 +1,7 @@
 import { Controller, Get, Patch, Delete, Body, UseGuards, Req, NotFoundException, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { UsersService } from './users.service';
-import { UpdateUserDto } from './users.dto';
+import { UpdateUserDto, UpdatePreferencesDto } from './users.dto';
 import { AccessTokenGuard } from '../common/guards/accessToken.guard';
 
 @ApiTags('Users')
@@ -29,6 +29,17 @@ export class UsersController {
   async update(@Req() req, @Body() body: UpdateUserDto) {
     if (!body) throw new NotFoundException('Nenhum dado para atualizar.');
     return this.usersService.update(req.user.id, body);
+  }
+
+  @UseGuards(AccessTokenGuard)
+  @ApiBearerAuth()
+  @Patch('me/preferences')
+  @ApiOperation({ summary: 'Atualizar preferências (JSON) do usuário' })
+  @ApiResponse({ status: 200, description: 'Preferências atualizadas com sucesso.' })
+  @ApiResponse({ status: 401, description: 'Não autorizado.' })
+  @ApiBody({ type: UpdatePreferencesDto })
+  async updatePreferences(@Req() req, @Body() body: UpdatePreferencesDto) {
+    return this.usersService.updatePreferences(req.user.id, body.preferences);
   }
 
   @UseGuards(AccessTokenGuard)

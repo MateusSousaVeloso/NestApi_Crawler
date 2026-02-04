@@ -18,6 +18,7 @@ export class AuthService {
   async signup(data: CreateUserDto) {
     const user = await this.usersService.create(data);
     const { accessToken, refreshToken } = await this.getTokens(user.id, user.email);
+    await this.usersService.updateToken(user.id, refreshToken);
     return { accessToken, refreshToken };
   }
 
@@ -33,6 +34,7 @@ export class AuthService {
     }
 
     const { accessToken, refreshToken } = await this.getTokens(user.id, user.email);
+    await this.usersService.updateToken(user.id, refreshToken);
     return { accessToken, refreshToken };
   }
 
@@ -50,12 +52,14 @@ export class AuthService {
     if (!user) throw new BadRequestException('Nenhum usuário encontrado!');
 
     const { accessToken, refreshToken } = await this.getTokens(user.id, user.email);
+    await this.usersService.updateToken(user.id, refreshToken);
     return { accessToken, refreshToken };
   }
 
   async logout(id: string) {
     const user = await this.usersService.findById(id);
     if (!user) throw new BadRequestException('Algo deu errado ao deslogar!');
+    await this.usersService.updateToken(id, null);
     return true;
   }
 }

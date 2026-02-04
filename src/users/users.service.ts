@@ -25,7 +25,7 @@ export class UsersService {
   }
 
   async findById(id: string) {
-    const user = await this.prisma.user.findUnique({ where: { id }, omit: { password: true } });
+    const user = await this.prisma.user.findUnique({ where: { id }, omit: { password: true, token: true } });
     if (!user) throw new NotFoundException('Usuário não existe.');
     return user;
   }
@@ -34,6 +34,30 @@ export class UsersService {
     const user = await this.prisma.user.findUnique({ where: { email }, select: { id: true, email: true, password: true } });
     if (!user) throw new NotFoundException('Usuário não existe.');
     return user;
+  }
+
+  async findByIdWithToken(id: string) {
+    const user = await this.prisma.user.findUnique({ where: { id }, select: { id: true, email: true, token: true } });
+    if (!user) throw new NotFoundException('Usuário não existe.');
+    return user;
+  }
+
+  async updateToken(id: string, token: string | null) {
+    return this.prisma.user.update({
+      where: { id },
+      data: { token },
+    });
+  }
+
+  async updatePreferences(id: string, preferences: Record<string, any>) {
+    const userExists = await this.prisma.user.findUnique({ where: { id } });
+    if (!userExists) throw new NotFoundException('Usuário não existe.');
+
+    return this.prisma.user.update({
+      where: { id },
+      data: { preferences },
+      omit: { password: true, token: true },
+    });
   }
 
   async update(id: string, data: UpdateUserDto) {
@@ -49,7 +73,7 @@ export class UsersService {
       data: {
         ...data,
       },
-      omit: { password: true },
+      omit: { password: true, token: true },
     });
     return updatedUser;
   }
