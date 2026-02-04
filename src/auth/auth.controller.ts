@@ -39,7 +39,6 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Não autorizado.' })
   async logout(@Res({ passthrough: true }) res, @Req() req) {
     await this.authService.logout(req.user['id']);
-
     res.clearCookie(process.env.REFRESH_TOKEN).clearCookie(process.env.ACCESS_TOKEN).status(200);
   }
 

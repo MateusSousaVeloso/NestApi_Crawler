@@ -21,6 +21,14 @@ export class CreateUserDto {
   @IsString()
   @IsNotEmpty()
   password: string;
+
+  @ApiProperty({
+    example: { loyalty_programs: ['LATAM Pass', 'Smiles'], document_cpf: '123.456.789-00' },
+    description: 'Preferências do usuário em formato JSON',
+  })
+  @IsObject()
+  @IsOptional()
+  preferences: Record<string, any>;
 }
 
 export class UpdateSubscriptionDto {
@@ -35,16 +43,6 @@ export class UpdateSubscriptionDto {
 
   @IsString()
   transaction_id: string;
-}
-
-export class UpdatePreferencesDto {
-  @ApiProperty({
-    example: { loyalty_programs: ['LATAM Pass', 'Smiles'], document_cpf: '123.456.789-00' },
-    description: 'Preferências do usuário em formato JSON',
-  })
-  @IsObject()
-  @IsNotEmpty({ message: 'Preferências não podem ser vazias.' })
-  preferences: Record<string, any>;
 }
 
 export class UpdateUserDto extends PartialType(CreateUserDto) {}
