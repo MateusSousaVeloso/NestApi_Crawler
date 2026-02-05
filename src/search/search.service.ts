@@ -50,23 +50,23 @@ export class SearchService {
       const response = await firstValueFrom(
         this.httpService.get(url, {
           headers: {
-            'Host': 'api-air-flightsearch-green.smiles.com.br',
-            'Cookie': credentials.cookies,
+            Host: 'api-air-flightsearch-green.smiles.com.br',
+            Cookie: credentials.cookies,
             'Sec-Ch-Ua-Platform': '"Windows"',
             'Accept-Language': 'pt-BR,pt;q=0.9',
             'Sec-Ch-Ua': '"Not(A:Brand";v="8", "Chromium";v="144"',
             'X-Api-Key': credentials.apiKey,
             'Sec-Ch-Ua-Mobile': '?0',
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36',
-            'Accept': 'application/json, text/plain, */*',
-            'Channel': 'WEB',
-            'Origin': 'https://www.smiles.com.br',
+            Accept: 'application/json, text/plain, */*',
+            Channel: 'WEB',
+            Origin: 'https://www.smiles.com.br',
             'Sec-Fetch-Site': 'same-site',
             'Sec-Fetch-Mode': 'cors',
             'Sec-Fetch-Dest': 'empty',
-            'Referer': 'https://www.smiles.com.br/',
+            Referer: 'https://www.smiles.com.br/',
             'Accept-Encoding': 'gzip, deflate, br',
-            'Priority': 'u=1, i',
+            Priority: 'u=1, i',
           },
           httpsAgent: this.tunnelingAgent,
           proxy: false,
@@ -74,11 +74,44 @@ export class SearchService {
         }),
       );
       this.logger.log(`Voo das Smiles buscado com sucesso`);
-      return {
-        provider: 'smiles',
-        searchParams: params.toString(),
-        data: response.data,
-      };
+
+      const flights = response.data.requestedFlightSegmentList.flatMap((segment) =>
+        segment.flightList.map((flight) => ({
+          uid: flight.uid,
+          departure: {
+            date: flight.departure.date,
+            airport: flight.departure.airport.code,
+            city: flight.departure.airport.city,
+          },
+          arrival: {
+            date: flight.arrival.date,
+            airport: flight.arrival.airport.code,
+            city: flight.arrival.airport.city,
+          },
+          airline: {
+            code: flight.airline.code,
+            name: flight.airline.name,
+          },
+          cabin: flight.cabin,
+          stops: flight.stops,
+          legs: flight.legList.map((leg) => ({
+            cabin: leg.cabin,
+            departure: {
+              date: leg.departure.date,
+              airport: leg.departure.airport.code,
+            },
+            arrival: {
+              date: leg.arrival.date,
+              airport: leg.arrival.airport.code,
+            },
+            flightCode: leg.operationAirline.code + leg.flightNumber,
+            duration: leg.duration,
+          })),
+          miles: flight.fareList[0]?.miles || 0,
+          segment: flight.type,
+        })),
+      );
+      return flights;
     } catch (error) {
       console.log('Error details:', error.message);
       if (error.code === 'ECONNREFUSED') {
