@@ -9,7 +9,7 @@ import { createHash } from 'crypto';
 type JwtPayload = {
   id: string;
   email: string;
-  tokenHash: string;
+  refreshToken: string;
 };
 
 @Injectable()
@@ -31,9 +31,7 @@ export class AccessTokenStrategy extends PassportStrategy(Strategy, 'jwt') {
       throw new UnauthorizedException('Sessão expirada. Faça login novamente.');
     }
 
-    const currentHash = createHash('sha256').update(user.token).digest('hex').substring(0, 16);
-
-    if (payload.tokenHash !== currentHash) {
+    if (payload.refreshToken !== user.token) {
       throw new UnauthorizedException('Sessão invalidada. Foi feito login em outro dispositivo.');
     }
 

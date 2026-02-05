@@ -2,59 +2,30 @@ import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { CrawlerService } from './crawler.service';
-import { SmilesSearchDto, AzulSearchDto, DispatchSearchDto } from './search.dto';
+import { SmilesSearchDto, AzulSearchDto } from './search.dto';
+import * as tunnel from 'tunnel';
 
 @Injectable()
 export class SearchService {
   private readonly logger = new Logger(SearchService.name);
+
+  private readonly tunnelingAgent = tunnel.httpsOverHttp({
+    proxy: {
+      host: '127.0.0.1',
+      port: 8080,
+    },
+    rejectUnauthorized: false,
+  });
 
   constructor(
     private readonly httpService: HttpService,
     private readonly crawlerService: CrawlerService,
   ) {}
 
-  async dispatchSearch(data: DispatchSearchDto) {
-    const crawlerPayload = {
-      job_id: crypto.randomUUID(),
-      origin: data.search_params.origin,
-      destination: data.search_params.destination,
-      date: data.search_params.dates.departure_date,
-      targets: data.search_params.preferences.programs,
-    };
-
-    return {
-      status: 'success',
-      execution_id: crawlerPayload.job_id,
-      results: {
-        cheapest_option: {
-          airline: 'TAP',
-          miles: 60000,
-          tax: 200.0,
-          stops: 1,
-          duration_minutes: 800,
-          departure: `${data.search_params.dates.departure_date}T08:00:00`,
-          booking_link: 'https://...',
-        },
-        smart_option: {
-          airline: 'LATAM',
-          miles: 65000,
-          tax: 210.0,
-          stops: 0,
-          duration_minutes: 600,
-          departure: `${data.search_params.dates.departure_date}T22:00:00`,
-          booking_link: 'https://...',
-        },
-      },
-    };
-  }
-
-  /**
-   * Busca voos na API da Smiles
-   */
   async searchSmiles(dto: SmilesSearchDto) {
-    this.logger.log(`Smiles search: ${dto.origin} -> ${dto.destination} on ${dto.departureDate}`);
+    this.logger.log(`Pesquisa na Smile: ${dto.origin} -> ${dto.destination} saindo em ${dto.departureDate}`);
 
-    const credentials = await this.crawlerService.getSmilesCredentials();
+    const credentials = { apiKey: 'aJqPU7xNHl9qN3NVZnPaJ208aPo2Bh2p2ZV844tw', cookies: 'test_club_smiles=old' };
 
     const params = new URLSearchParams({
       cabin: dto.cabin || 'ALL',
@@ -79,49 +50,41 @@ export class SearchService {
       const response = await firstValueFrom(
         this.httpService.get(url, {
           headers: {
-            Host: 'api-air-flightsearch-green.smiles.com.br',
-            accept: 'application/json, text/plain, */*',
-            'accept-language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
-            channel: 'WEB',
-            origin: 'https://www.smiles.com.br',
-            referer: 'https://www.smiles.com.br/',
-            'sec-ch-ua': '"Not(A:Brand";v="8", "Chromium";v="144", "Google Chrome";v="144"',
-            'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': '"Windows"',
-            'sec-fetch-dest': 'empty',
-            'sec-fetch-mode': 'cors',
-            'sec-fetch-site': 'same-site',
-            'user-agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36',
-            'x-api-key': credentials.apiKey,
-            Cookie: credentials.cookies,
+            'Host': 'api-air-flightsearch-green.smiles.com.br',
+            'Cookie': credentials.cookies,
+            'Sec-Ch-Ua-Platform': '"Windows"',
+            'Accept-Language': 'pt-BR,pt;q=0.9',
+            'Sec-Ch-Ua': '"Not(A:Brand";v="8", "Chromium";v="144"',
+            'X-Api-Key': credentials.apiKey,
+            'Sec-Ch-Ua-Mobile': '?0',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36',
+            'Accept': 'application/json, text/plain, */*',
+            'Channel': 'WEB',
+            'Origin': 'https://www.smiles.com.br',
+            'Sec-Fetch-Site': 'same-site',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Dest': 'empty',
+            'Referer': 'https://www.smiles.com.br/',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Priority': 'u=1, i',
           },
+          httpsAgent: this.tunnelingAgent,
+          proxy: false,
           timeout: 30000,
         }),
       );
-
-      this.logger.log(`Smiles search completed successfully`);
+      this.logger.log(`Voo das Smiles buscado com sucesso`);
       return {
         provider: 'smiles',
-        searchParams: {
-          origin: dto.origin,
-          destination: dto.destination,
-          departureDate: dto.departureDate,
-          returnDate: dto.returnDate,
-          passengers: { adults: dto.adults, children: dto.children, infants: dto.infants },
-        },
+        searchParams: params.toString(),
         data: response.data,
       };
     } catch (error) {
-      this.logger.error(`Smiles search failed: ${error.message}`);
-      throw new HttpException(
-        {
-          provider: 'smiles',
-          error: 'Falha ao buscar voos na Smiles',
-          details: error.response?.data || error.message,
-        },
-        error.response?.status || HttpStatus.BAD_GATEWAY,
-      );
+      console.log('Error details:', error.message);
+      if (error.code === 'ECONNREFUSED') {
+        console.log('ERRO: Não foi possível conectar ao Proxy em 127.0.0.1:8080. Verifique se o Mitmproxy está rodando.');
+      }
+      throw new HttpException({ provider: 'smiles', error: 'Falha', details: error.message }, HttpStatus.BAD_GATEWAY);
     }
   }
 
@@ -133,7 +96,6 @@ export class SearchService {
 
     const credentials = await this.crawlerService.getAzulCredentials();
 
-    // Formatar data para o padrão esperado pela Azul (MM/DD/YYYY)
     const [year, month, day] = dto.departureDate.split('-');
     const formattedDate = `${month}/${day}/${year}`;
 
@@ -179,15 +141,14 @@ export class SearchService {
             'sec-fetch-dest': 'empty',
             'sec-fetch-mode': 'cors',
             'sec-fetch-site': 'same-site',
-            'user-agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36',
             Cookie: credentials.cookies,
           },
           timeout: 30000,
         }),
       );
 
-      this.logger.log(`Azul search completed successfully`);
+      this.logger.log(`Voo da Azul buscado com sucesso`);
       return {
         provider: 'azul',
         searchParams: {

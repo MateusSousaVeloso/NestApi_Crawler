@@ -1,21 +1,12 @@
 import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { SearchService } from './search.service';
-import { DispatchSearchDto, SmilesSearchDto, AzulSearchDto } from './search.dto';
+import { SmilesSearchDto, AzulSearchDto } from './search.dto';
 
 @ApiTags('Search')
 @Controller('search')
 export class SearchController {
   constructor(private readonly searchService: SearchService) {}
-
-  @Post('dispatch')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Disparar busca geral (legado)' })
-  @ApiResponse({ status: 200, description: 'Busca disparada com sucesso.' })
-  async dispatch(@Body() dto: DispatchSearchDto) {
-    return this.searchService.dispatchSearch(dto);
-  }
-
   @Post('smiles')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Buscar voos na Smiles' })
