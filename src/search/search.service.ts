@@ -108,7 +108,6 @@ export class SearchService {
     const url = 'https://b2c-api.voeazul.com.br/reservationavailability/api/reservation/availability/v5/availability';
 
     try {
-      // Cuimp lida com JSON automaticamente no POST, similar ao Axios
       const response = await this.curlService.post(url, payload, {
         headers: {
           accept: 'application/json, text/plain, */*',
