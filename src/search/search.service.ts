@@ -1,20 +1,12 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
-import { createCuimpHttp } from 'cuimp';
+import { request } from 'cuimp';
 import { AzulSearchDto, SmilesSearchDto } from './search.dto';
 import { CrawlerService } from './crawler.service';
-
 
 @Injectable()
 export class SearchService {
   private readonly logger = new Logger(SearchService.name);
-  private readonly curlService: ReturnType<typeof createCuimpHttp>;
-  private readonly crawlerService: CrawlerService
-  
-  constructor() {
-    this.curlService = createCuimpHttp({
-      descriptor: { browser: 'chrome', version: '136' },
-    })
-  }
+  private readonly crawlerService: CrawlerService;
 
   async searchSmiles(dto: SmilesSearchDto) {
     this.logger.log('Procurando Voos na Smiles...');
@@ -34,10 +26,12 @@ export class SearchService {
     const url = `https://api-air-flightsearch-green.smiles.com.br/v1/airlines/search?${params.toString()}`;
 
     const akamaiCookie =
-      'bm_s=YAAQlQ8tFy2SnR2cAQAAwU2SKgQwVp8mozVgbzienuzgcSWN6Jb+WUnJdwiRus+nnhpy+FmDM38ziNtrvjCHOOn0qdjb9XvwbVor+1leZbnRBi9G/TwPia01GRgchXFby/TmXiId0LywnRBo1SK6nmr7L4Dq5H+GpszauQlQmpf75u83EAPO6mz/p1F9svW5WOej4ZcQRyVO0M/ezOWPoaewSficQCRI2X30A1a69Z9CGBq40Hh8LiqHBmRQkkNmdCLCwPG+9KupYK1W41kLj/a2Ah0jrBMbNtmo6KQN17F1hCxQrJUlCNLfiq9L2HeHIhAWcsu9Za8aMZAN4lfkYl6gJJVDVr6Dw58xdJBZpuJ2sZqOCtsR0MijGfKLrqLT3WrqmCXqJeGkHalz7aSUXu5BzzDAeTgOdav9wz4Jf5sQN2GGXLzA1kuplE6CWiH5p73Gq/sA+OZerZ3mq0G4l1hAuViLbSxYddAxYABmrTbQsSWDvpFLeKW8apHm5IZG82XElH/undKWHTkDHpiibdxOlJxE8MmS8tgiLbIVaawi8SX9hDcWQDB9xT0Djy7bkOhNKk1E0Gvj0lqlc2tj+94=';
+      'bm_s=YAAQBckQAtfnEyqcAQAAv4NuQwSUoZ/6B1ADvXllhTXScZBeqjpMB3tN8uRjReUzvJPb3RF9D3vCZUdybwypBLSVQByG4w9Di1b69E5TLaWcQI/UU1oWRkQXOCMAJ+moUWUy7xl8e4CI5Tdz9lzQASDKyPkmwlTa9muxfD8bKrEpMPfSzfJkP7apVEInZ5YHOp8jp3tv9p9J/BobMMASEnloeKnJOis1n3lgL3jf1xDx5aLehQLFTkwGKSoQXy+DzGigaCV/rXyScPcTSVLh6ae1PGkJrioSnk4Xjel58dg5Vk/kUM67MdaXSwM7TGoEP7m/HYxyPGRA1CSPIjbClPJuq6sXCeowGOTBE6ZVXYCiY1qxphsWgqqpEH701Ge+JmxkwIxp8ao9CK2qB1RSgLV4iN64/Lhn4Db/VP+x2wFXV4gyUbjlGcWs6g2DQZNor4IUd4ZGb5K2sN4A1vT/Ik6voxNP85RrO7vWsVZbudKil4fuxYeGHvot3tjsGxgupd6fn8DHT9d1bJvjb4gaow0BM3M3AO8IgNEmCzum/ZGYYLAo71ztWjsIQZK3TLBxR5WImXG/Z7iK517TNHAc2LyF';
 
     try {
-      const response = await this.curlService.get(url, {
+      const response = await request({
+        url,
+        method: 'GET',
         headers: {
           Host: 'api-air-flightsearch-green.smiles.com.br',
           Cookie: akamaiCookie,
@@ -56,6 +50,7 @@ export class SearchService {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36',
           'X-Api-Key': 'aJqPU7xNHl9qN3NVZnPaJ208aPo2Bh2p2ZV844tw',
         },
+        insecureTLS: false,
       });
 
       this.logger.log(`Voos Smiles achados com sucesso! Status: ${response.status}`);
@@ -108,7 +103,9 @@ export class SearchService {
     const url = 'https://b2c-api.voeazul.com.br/reservationavailability/api/reservation/availability/v5/availability';
 
     try {
-      const response = await this.curlService.post(url, payload, {
+      const response = await request({
+        url,
+        data: payload,
         headers: {
           accept: 'application/json, text/plain, */*',
           authorization: `Bearer ${credentials.bearerToken}`,
