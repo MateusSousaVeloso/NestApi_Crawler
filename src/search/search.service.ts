@@ -17,7 +17,7 @@ export class SearchService {
   }
 
   async searchSmiles(dto: SmilesSearchDto) {
-    this.logger.log('Executando requisição Smiles (Réplica Exata)...');
+    this.logger.log('Procurando Voos na Smiles...');
 
     const params = new URLSearchParams({
       cabin: dto.cabin || 'ALL',
@@ -58,7 +58,7 @@ export class SearchService {
         },
       });
 
-      this.logger.log(`Sucesso! Status: ${response.status}`);
+      this.logger.log(`Voos Smiles achados com sucesso! Status: ${response.status}`);
       return response.data;
     } catch (error: any) {
       this.logger.error(`Erro na requisição: ${error.message}`);
