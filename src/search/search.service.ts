@@ -34,7 +34,7 @@ export class SearchService {
         method: 'GET',
         headers: {
           Host: 'api-air-flightsearch-green.smiles.com.br',
-          Cookie: akamaiCookie,
+          // Cookie: akamaiCookie,
           Accept: 'application/json, text/plain, */*',
           'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
           Channel: 'WEB',
