@@ -25,16 +25,12 @@ export class SearchService {
 
     const url = `https://api-air-flightsearch-green.smiles.com.br/v1/airlines/search?${params.toString()}`;
 
-    const akamaiCookie =
-      'bm_s=YAAQBckQAtfnEyqcAQAAv4NuQwSUoZ/6B1ADvXllhTXScZBeqjpMB3tN8uRjReUzvJPb3RF9D3vCZUdybwypBLSVQByG4w9Di1b69E5TLaWcQI/UU1oWRkQXOCMAJ+moUWUy7xl8e4CI5Tdz9lzQASDKyPkmwlTa9muxfD8bKrEpMPfSzfJkP7apVEInZ5YHOp8jp3tv9p9J/BobMMASEnloeKnJOis1n3lgL3jf1xDx5aLehQLFTkwGKSoQXy+DzGigaCV/rXyScPcTSVLh6ae1PGkJrioSnk4Xjel58dg5Vk/kUM67MdaXSwM7TGoEP7m/HYxyPGRA1CSPIjbClPJuq6sXCeowGOTBE6ZVXYCiY1qxphsWgqqpEH701Ge+JmxkwIxp8ao9CK2qB1RSgLV4iN64/Lhn4Db/VP+x2wFXV4gyUbjlGcWs6g2DQZNor4IUd4ZGb5K2sN4A1vT/Ik6voxNP85RrO7vWsVZbudKil4fuxYeGHvot3tjsGxgupd6fn8DHT9d1bJvjb4gaow0BM3M3AO8IgNEmCzum/ZGYYLAo71ztWjsIQZK3TLBxR5WImXG/Z7iK517TNHAc2LyF';
-
     try {
       const response = await request({
         url,
         method: 'GET',
         headers: {
           Host: 'api-air-flightsearch-green.smiles.com.br',
-          // Cookie: akamaiCookie,
           Accept: 'application/json, text/plain, */*',
           'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
           Channel: 'WEB',
@@ -54,7 +50,65 @@ export class SearchService {
       });
 
       this.logger.log(`Voos Smiles achados com sucesso! Status: ${response.status}`);
-      return response.data;
+      const segments = (response.data as any)?.requestedFlightSegmentList;
+      const rawFlightList = segments?.[0]?.flightList || [];
+      const flights = rawFlightList.map((flight: any) => {
+        const firstLeg = flight.legList?.[0];
+        const isDirect = flight.stops === 0;
+        
+        return {
+          uid: flight.uid,
+          airline: flight.airline?.name,
+          cabin: flight.cabin,
+          stops: flight.stops,
+          departure: {
+            ...(isDirect && {
+              flightCode: firstLeg ? (firstLeg.operationAirline?.code || firstLeg.marketingAirline?.code) + firstLeg.flightNumber : null,
+            }),
+            date: flight.departure.date,
+            airport: flight.departure.airport.code,
+            name: flight.departure.airport.name,
+          },
+          arrival: {
+            date: flight.arrival.date,
+            airport: flight.arrival.airport.code,
+            name: flight.arrival.airport.name,
+          },
+          duration: flight.duration,
+          miles: flight.fareList?.[0]?.miles || 0,
+          ...(!isDirect && {
+            legs:
+            flight.legList?.map((leg: any) => ({
+                flightCode: (leg.operationAirline?.code || leg.marketingAirline?.code) + leg.flightNumber,
+                cabin: leg.cabin,
+                departure: {
+                  date: leg.departure.date,
+                  airport: leg.departure.airport.code,
+                },
+                arrival: {
+                  date: leg.arrival.date,
+                  airport: leg.arrival.airport.code,
+                },
+              })) || [],
+          }),
+        };
+      });
+      this.logger.log(`Quantidade de voos encontrados: ${flights.length}`);
+      if (dto.orderBy === 'preco') {
+        flights.sort((a: any, b: any) => a.miles - b.miles);
+      } 
+      else if (dto.orderBy === 'custo-beneficio') {
+        flights.sort((a: any, b: any) => {
+            const durationA = (a.duration.hours * 60) + a.duration.minutes;
+            const durationB = (b.duration.hours * 60) + b.duration.minutes;
+
+            const ratioA = durationA > 0 ? a.miles / durationA : Number.MAX_VALUE;
+            const ratioB = durationB > 0 ? b.miles / durationB : Number.MAX_VALUE;
+
+            return ratioA - ratioB; 
+        });
+      }      
+      return flights.slice(0, 3);
     } catch (error: any) {
       this.logger.error(`Erro na requisição: ${error.message}`);
       if (error.data) {
