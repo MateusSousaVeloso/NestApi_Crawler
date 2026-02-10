@@ -18,9 +18,10 @@ model User {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  tripInfo        TripInfo?
-  subscriptions   UserSubscription[]
-  histories       History[]
+  tripInfo            TripInfo?
+  subscriptions       UserSubscription[]
+  histories           History[]
+  routePreferences    UserRoutePreference[]
 
   @@map("users")
 }
@@ -65,6 +66,38 @@ model History {
 enum TipoBusca {
   preco
   custo_beneficio
+}
+
+enum CabinType {
+  ANY        // Qualquer classe
+  ECONOMY    // Econômica
+  BUSINESS   // Executiva
+  FIRST      // Primeira Classe
+}
+
+enum AlertFrequency {
+  DAILY          // Diariamente
+  EVERY_6_HOURS  // A cada 6 horas
+  EVERY_12_HOURS // A cada 12 horas
+}
+
+model UserRoutePreference {
+  id               String         @id @default(dbgenerated("gen_random_uuid()"))
+  originCity       String         @db.VarChar(100)
+  originIata       String         @db.VarChar(10)
+  destinationCity  String         @db.VarChar(100)
+  destinationIata  String         @db.VarChar(10)
+  cabinType        CabinType      @default(ANY)
+  alertFrequency   AlertFrequency @default(DAILY)
+  isActive         Boolean        @default(true)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  userId           String
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_route_preferences")
+  @@index([userId])
 }
 
 model TripInfo {
