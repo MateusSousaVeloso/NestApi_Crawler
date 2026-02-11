@@ -11,7 +11,7 @@ export enum CabinClass {
 
 export enum OrderBy {
   PRECO = 'preco',
-  CUSTO_BENEFICIO = 'custo-beneficio',
+  CUSTO_BENEFICIO = 'custo_beneficio',
 }
 
 export class FlightSearchDto {
@@ -25,15 +25,15 @@ export class FlightSearchDto {
   @IsNotEmpty()
   destination: string;
 
-  @ApiProperty({ example: '2026-03-19', description: 'Data de partida (YYYY-MM-DD)' })
+  @ApiProperty({ example: '2026-03-19', description: 'Data inicial de partida (YYYY-MM-DD)' })
   @IsDateString()
   @IsNotEmpty()
   departureDate: string;
 
-  @ApiPropertyOptional({ example: '2026-04-23', description: 'Data de retorno (YYYY-MM-DD) - opcional para ida e volta' })
+  @ApiPropertyOptional({ example: '2026-04-23', description: 'Data final de partida (YYYY-MM-DD) - opcional para pesquisar voo de um range de dias' })
   @IsDateString()
   @IsOptional()
-  returnDate?: string;
+  finalDate?: string;
 
   @ApiProperty({ example: 1, description: 'Número de adultos', default: 1 })
   @IsInt()

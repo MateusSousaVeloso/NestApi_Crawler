@@ -15,7 +15,6 @@ export class SearchService {
       cabin: dto.cabin || 'ALL',
       originAirportCode: dto.origin,
       destinationAirportCode: dto.destination,
-      departureDate: dto.departureDate,
       adults: dto.adults.toString(),
       children: dto.children.toString(),
       infants: dto.infants.toString(),
@@ -97,7 +96,7 @@ export class SearchService {
       if (dto.orderBy === 'preco') {
         flights.sort((a: any, b: any) => a.miles - b.miles);
       } 
-      else if (dto.orderBy === 'custo-beneficio') {
+      else if (dto.orderBy === 'custo_beneficio') {
         flights.sort((a: any, b: any) => {
             const durationA = (a.duration.hours * 60) + a.duration.minutes;
             const durationB = (b.duration.hours * 60) + b.duration.minutes;
