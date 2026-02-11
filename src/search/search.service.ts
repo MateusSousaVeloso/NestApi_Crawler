@@ -11,15 +11,58 @@ export class SearchService {
   async searchSmiles(dto: SmilesSearchDto) {
     this.logger.log('Procurando Voos na Smiles...');
 
+    if (dto.finalDate) {
+      const start = new Date(dto.departureDate + 'T00:00:00');
+      const end = new Date(dto.finalDate + 'T00:00:00');
+      const diffDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (diffDays < 0) {
+        throw new HttpException(
+          { message: 'finalDate deve ser igual ou posterior a departureDate' },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const dates: string[] = [];
+      for (let i = 0; i <= diffDays; i++) {
+        const d = new Date(start);
+        d.setDate(d.getDate() + i);
+        dates.push(d.toISOString().split('T')[0]);
+      }
+
+      this.logger.log(`Buscando voos para ${dates.length} dia(s): ${dates[0]} até ${dates[dates.length - 1]}`);
+
+      const results = await Promise.all(
+        dates.map((date) =>
+          this.fetchSmilesFlights(dto, date).catch((error) => {
+            this.logger.error(`Erro ao buscar voos para ${date}: ${error.message}`);
+            return { error: `Falha ao buscar voos para ${date}: ${error.message}` };
+          }),
+        ),
+      );
+
+      const grouped: Record<string, any> = {};
+      dates.forEach((date, index) => {
+        grouped[date] = results[index];
+      });
+
+      return grouped;
+    }
+
+    return this.fetchSmilesFlights(dto, dto.departureDate);
+  }
+
+  private async fetchSmilesFlights(dto: SmilesSearchDto, date: string) {
     const params = new URLSearchParams({
       cabin: dto.cabin || 'ALL',
       originAirportCode: dto.origin,
       destinationAirportCode: dto.destination,
+      departureDate: date,
       adults: dto.adults.toString(),
       children: dto.children.toString(),
       infants: dto.infants.toString(),
       forceCongener: 'false',
-      memberNumber: '',
+      memberNumber: dto.memberNumber || '',
     });
 
     const url = `https://api-air-flightsearch-green.smiles.com.br/v1/airlines/search?${params.toString()}`;
@@ -48,13 +91,13 @@ export class SearchService {
         insecureTLS: false,
       });
 
-      this.logger.log(`Voos Smiles achados com sucesso! Status: ${response.status}`);
+      this.logger.log(`Voos Smiles achados com sucesso para ${date}! Status: ${response.status}`);
       const segments = (response.data as any)?.requestedFlightSegmentList;
       const rawFlightList = segments?.[0]?.flightList || [];
       const flights = rawFlightList.map((flight: any) => {
         const firstLeg = flight.legList?.[0];
         const isDirect = flight.stops === 0;
-        
+
         return {
           uid: flight.uid,
           airline: flight.airline?.name,
@@ -92,10 +135,10 @@ export class SearchService {
           }),
         };
       });
-      this.logger.log(`Quantidade de voos encontrados: ${flights.length}`);
+      this.logger.log(`Quantidade de voos encontrados para ${date}: ${flights.length}`);
       if (dto.orderBy === 'preco') {
         flights.sort((a: any, b: any) => a.miles - b.miles);
-      } 
+      }
       else if (dto.orderBy === 'custo_beneficio') {
         flights.sort((a: any, b: any) => {
             const durationA = (a.duration.hours * 60) + a.duration.minutes;
@@ -104,19 +147,19 @@ export class SearchService {
             const ratioA = durationA > 0 ? a.miles / durationA : Number.MAX_VALUE;
             const ratioB = durationB > 0 ? b.miles / durationB : Number.MAX_VALUE;
 
-            return ratioA - ratioB; 
+            return ratioA - ratioB;
         });
-      }      
-      return flights.slice(0, 3);
+      }
+      return { flights: flights.slice(0, 3) };
     } catch (error: any) {
-      this.logger.error(`Erro na requisição: ${error.message}`);
+      this.logger.error(`Erro na requisição para ${date}: ${error.message}`);
       if (error.data) {
         this.logger.error(`Detalhes do erro: ${JSON.stringify(error.data)}`);
       }
 
       throw new HttpException(
         {
-          message: 'Falha na requisição Smiles',
+          message: `Falha na requisição Smiles para ${date}`,
           details: error.message,
           response: error.data,
         },
