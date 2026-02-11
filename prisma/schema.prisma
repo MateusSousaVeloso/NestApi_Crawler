@@ -107,7 +107,6 @@ model TripInfo {
   departureDate DateTime? @db.Date
   finalDate     DateTime? @db.Date
   tipoBusca     TipoBusca?
-  results       Json?
 
   createdAt     DateTime @default(now()) @db.Timestamptz(6)
   updatedAt     DateTime @updatedAt @default(now()) @db.Timestamptz(6)

@@ -17,10 +17,7 @@ export class SearchService {
       const diffDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
 
       if (diffDays < 0) {
-        throw new HttpException(
-          { message: 'finalDate deve ser igual ou posterior a departureDate' },
-          HttpStatus.BAD_REQUEST,
-        );
+        throw new HttpException({ message: 'finalDate deve ser igual ou posterior a departureDate' }, HttpStatus.BAD_REQUEST);
       }
 
       const dates: string[] = [];
@@ -29,8 +26,6 @@ export class SearchService {
         d.setDate(d.getDate() + i);
         dates.push(d.toISOString().split('T')[0]);
       }
-
-      this.logger.log(`Buscando voos para ${dates.length} dia(s): ${dates[0]} até ${dates[dates.length - 1]}`);
 
       const results = await Promise.all(
         dates.map((date) =>
@@ -48,8 +43,9 @@ export class SearchService {
 
       return grouped;
     }
-
-    return this.fetchSmilesFlights(dto, dto.departureDate);
+    const flights = await this.fetchSmilesFlights(dto, dto.departureDate);
+    this.logger.log(`Voos da smile encontrados com sucesso!`);
+    return flights;
   }
 
   private async fetchSmilesFlights(dto: SmilesSearchDto, date: string) {
@@ -91,7 +87,6 @@ export class SearchService {
         insecureTLS: false,
       });
 
-      this.logger.log(`Voos Smiles achados com sucesso para ${date}! Status: ${response.status}`);
       const segments = (response.data as any)?.requestedFlightSegmentList;
       const rawFlightList = segments?.[0]?.flightList || [];
       const flights = rawFlightList.map((flight: any) => {
@@ -120,7 +115,7 @@ export class SearchService {
           miles: flight.fareList?.[0]?.miles || 0,
           ...(!isDirect && {
             legs:
-            flight.legList?.map((leg: any) => ({
+              flight.legList?.map((leg: any) => ({
                 flightCode: (leg.operationAirline?.code || leg.marketingAirline?.code) + leg.flightNumber,
                 cabin: leg.cabin,
                 departure: {
@@ -135,22 +130,20 @@ export class SearchService {
           }),
         };
       });
-      this.logger.log(`Quantidade de voos encontrados para ${date}: ${flights.length}`);
       if (dto.orderBy === 'preco') {
         flights.sort((a: any, b: any) => a.miles - b.miles);
-      }
-      else if (dto.orderBy === 'custo_beneficio') {
+      } else if (dto.orderBy === 'custo_beneficio') {
         flights.sort((a: any, b: any) => {
-            const durationA = (a.duration.hours * 60) + a.duration.minutes;
-            const durationB = (b.duration.hours * 60) + b.duration.minutes;
+          const durationA = a.duration.hours * 60 + a.duration.minutes;
+          const durationB = b.duration.hours * 60 + b.duration.minutes;
 
-            const ratioA = durationA > 0 ? a.miles / durationA : Number.MAX_VALUE;
-            const ratioB = durationB > 0 ? b.miles / durationB : Number.MAX_VALUE;
+          const ratioA = durationA > 0 ? a.miles / durationA : Number.MAX_VALUE;
+          const ratioB = durationB > 0 ? b.miles / durationB : Number.MAX_VALUE;
 
-            return ratioA - ratioB;
+          return ratioA - ratioB;
         });
       }
-      return { flights: flights.slice(0, 3) };
+      return flights.slice(0, 3);
     } catch (error: any) {
       this.logger.error(`Erro na requisição para ${date}: ${error.message}`);
       if (error.data) {
