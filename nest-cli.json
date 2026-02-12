@@ -18,6 +18,10 @@
       {
         "include": "../prisma/generated/**/*",
         "outDir": "./dist/prisma"
+      },
+      {
+        "include": "data/**/*",
+        "watchAssets": true
       }
     ]
   }
