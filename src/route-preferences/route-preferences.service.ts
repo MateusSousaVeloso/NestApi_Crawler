@@ -7,9 +7,12 @@ export class RoutePreferencesService {
   constructor(private prisma: PrismaService) {}
 
   async create(userId: string, dto: CreateRoutePreferenceDto) {
+    const { dateStart, dateEnd, ...rest } = dto;
     return this.prisma.userRoutePreference.create({
       data: {
-        ...dto,
+        ...rest,
+        dateStart: dateStart ? new Date(dateStart) : null,
+        dateEnd: dateEnd ? new Date(dateEnd) : null,
         userId,
       },
     });
@@ -32,9 +35,14 @@ export class RoutePreferencesService {
 
   async update(userId: string, id: string, dto: UpdateRoutePreferenceDto) {
     await this.findOne(userId, id);
+    const { dateStart, dateEnd, ...rest } = dto;
     return this.prisma.userRoutePreference.update({
       where: { id },
-      data: dto,
+      data: {
+        ...rest,
+        ...(dateStart !== undefined && { dateStart: dateStart ? new Date(dateStart) : null }),
+        ...(dateEnd !== undefined && { dateEnd: dateEnd ? new Date(dateEnd) : null }),
+      },
     });
   }
 
