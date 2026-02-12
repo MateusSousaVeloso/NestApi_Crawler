@@ -91,7 +91,7 @@ export class SearchService {
 
       const segments = (response.data as any)?.requestedFlightSegmentList;
       const rawFlightList = segments?.[0]?.flightList || [];
-      const flights = rawFlightList.map((flight: any) => {
+      let flights = rawFlightList.map((flight: any) => {
         const firstLeg = flight.legList?.[0];
         const isDirect = flight.stops === 0;
 
@@ -135,7 +135,7 @@ export class SearchService {
       });
 
       if (dto.cabin !== 'ALL') {
-        flights.filter((flight) => flight.cabin === dto.cabin);
+        flights = flights.filter((flight) => flight.cabin === dto.cabin);
       }
 
       if (dto.orderBy === 'preco') {
@@ -153,19 +153,7 @@ export class SearchService {
       }
       return flights.slice(0, 3);
     } catch (error: any) {
-      this.logger.error(`Erro na requisição para ${date}: ${error.message}`);
-      if (error.data) {
-        this.logger.error(`Detalhes do erro: ${JSON.stringify(error.data)}`);
-      }
-
-      throw new HttpException(
-        {
-          message: `Falha na requisição Smiles para ${date}`,
-          details: error.message,
-          response: error.data,
-        },
-        HttpStatus.BAD_GATEWAY,
-      );
+      this.handleCuimpError('Smiles', error);
     }
   }
 
@@ -218,47 +206,124 @@ export class SearchService {
 
       this.logger.log(`Voo da Azul buscado com sucesso via Cuimp`);
 
-      return {
-        provider: 'azul',
-        searchParams: {
-          origin: dto.origin,
-          destination: dto.destination,
-          departureDate: dto.departureDate,
-          passengers: { adults: dto.adults, children: dto.children, infants: dto.infants },
-        },
-        data: response.data,
-      };
+      const flights = this.parseAzulFlights(response.data);
+
+      let filteredFlights = flights;
+      if (dto.cabin && dto.cabin !== 'ALL') {
+        const cabinMap: Record<string, string> = {
+          ECONOMY: 'Economy',
+          BUSINESS: 'Business',
+          FIRST: 'First',
+        };
+        const targetCabin = cabinMap[dto.cabin] || dto.cabin;
+        filteredFlights = flights.filter((f) => f.cabin === targetCabin);
+      }
+
+      if (dto.orderBy === 'preco') {
+        filteredFlights.sort((a, b) => a.price - b.price);
+      } else if (dto.orderBy === 'custo_beneficio') {
+        filteredFlights.sort((a, b) => {
+          const durationA = a.duration.hours * 60 + a.duration.minutes;
+          const durationB = b.duration.hours * 60 + b.duration.minutes;
+          const ratioA = durationA > 0 ? a.price / durationA : Number.MAX_VALUE;
+          const ratioB = durationB > 0 ? b.price / durationB : Number.MAX_VALUE;
+          return ratioA - ratioB;
+        });
+      }
+
+      return filteredFlights.slice(0, 3);
     } catch (error: any) {
       this.handleCuimpError('azul', error);
     }
   }
 
-  private handleCuimpError(provider: string, error: any) {
-    this.logger.error(`Erro ${provider} (Cuimp): ${error.message}`);
+  private parseAzulFlights(data: any): any[] {
+    const flights: any[] = [];
 
-    // Tratamento de erros baseado na documentação do Cuimp
-    let status = HttpStatus.BAD_GATEWAY;
-    let details = error.message;
+    // Itera sobre cada dia retornado
+    for (const dayData of data || []) {
+      const journeys = dayData.journeys || [];
 
-    if (error.code === 'ENOTFOUND') {
-      details = 'Erro de rede: Não foi possível conectar ao host.';
-    } else if (error.status) {
-      status = error.status;
-      details = `HTTP ${error.status}: ${error.statusText}`;
-      // Tenta pegar o corpo da resposta de erro se disponível
-      if (error.data) {
-        details = JSON.stringify(error.data);
+      for (const journey of journeys) {
+        // Pula voos indisponíveis
+        if (!journey.status?.available) continue;
+
+        // Encontra a tarifa mais barata disponível
+        const availableFare = journey.fares?.find((f: any) => f.paxFares?.length > 0);
+        if (!availableFare) continue;
+
+        const identifier = journey.identifier;
+        const segments = journey.segments || [];
+        const isDirect = (identifier.connections?.count || 0) === 0;
+
+        // Determina a cabin baseado na categoria do produto
+        const cabin = availableFare.productClass?.category || 'Economy';
+
+        const flight: any = {
+          uid: journey.journeyKey,
+          airline: 'Azul',
+          cabin,
+          availableSeats: this.getMinRemainingSeats(segments),
+          stops: identifier.connections?.count || 0,
+          departure: {
+            ...(isDirect && {
+              flightCode: `${identifier.carrierCode}${identifier.flightNumber}`,
+            }),
+            date: identifier.std,
+            airport: identifier.departureStation,
+            name: identifier.departureStation,
+          },
+          arrival: {
+            date: identifier.sta,
+            airport: identifier.arrivalStation,
+            name: identifier.arrivalStation,
+          },
+          duration: {
+            hours: Math.floor(identifier.duration?.hours || 0),
+            minutes: Math.floor(identifier.duration?.minutes || 0),
+          },
+          price: availableFare.paxFares?.[0]?.totalAmount || 0,
+          currency: availableFare.paxFares?.[0]?.currencyCode || 'BRL',
+          productClass: availableFare.productClass?.name,
+        };
+
+        // Adiciona legs se não for direto
+        if (!isDirect && segments.length > 0) {
+          flight.legs = segments.map((segment: any) => ({
+            flightCode: `${segment.identifier.carrierCode}${segment.identifier.flightNumber}`,
+            cabin,
+            aircraft: segment.equipment?.name,
+            departure: {
+              date: segment.identifier.std,
+              airport: segment.identifier.departureStation,
+            },
+            arrival: {
+              date: segment.identifier.sta,
+              airport: segment.identifier.arrivalStation,
+            },
+          }));
+        }
+
+        flights.push(flight);
       }
     }
 
-    throw new HttpException(
-      {
-        provider,
-        error: `Falha ao buscar voos na ${provider}`,
-        details,
-      },
-      status,
-    );
+    return flights;
+  }
+
+  private getMinRemainingSeats(segments: any[]): number {
+    let minSeats = Number.MAX_VALUE;
+
+    for (const segment of segments) {
+      for (const leg of segment.legs || []) {
+        const remaining = leg.legInfo?.remainingSeats ?? Number.MAX_VALUE;
+        if (remaining < minSeats) {
+          minSeats = remaining;
+        }
+      }
+    }
+
+    return minSeats === Number.MAX_VALUE ? 0 : minSeats;
   }
 
   /**
@@ -280,4 +345,30 @@ export class SearchService {
   //     message: 'LATAM search not implemented yet',
   //   };
   // }
+
+  private handleCuimpError(provider: string, error: any) {
+    this.logger.error(`Erro ${provider} (Cuimp): ${error.message}`);
+
+    let status = HttpStatus.BAD_GATEWAY;
+    let details = error.message;
+
+    if (error.code === 'ENOTFOUND') {
+      details = 'Erro de rede: Não foi possível conectar ao host.';
+    } else if (error.status) {
+      status = error.status;
+      details = `HTTP ${error.status}: ${error.statusText}`;
+      if (error.data) {
+        details = JSON.stringify(error.data);
+      }
+    }
+
+    throw new HttpException(
+      {
+        provider,
+        error: `Falha ao buscar voos na ${provider}`,
+        details,
+      },
+      status,
+    );
+  }
 }
