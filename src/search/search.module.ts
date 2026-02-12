@@ -8,6 +8,6 @@ import { CrawlerService } from './crawler.service';
   imports: [HttpModule],
   controllers: [SearchController],
   providers: [SearchService, CrawlerService],
-  exports: [CrawlerService],
+  exports: [SearchService, CrawlerService],
 })
 export class SearchModule {}
