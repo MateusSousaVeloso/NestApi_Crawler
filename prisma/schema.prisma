@@ -103,12 +103,14 @@ model UserRoutePreference {
 }
 
 model TripInfo {
-  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  origin        String?   @db.VarChar(10)
-  destination   String?   @db.VarChar(10)
-  departureDate DateTime? @db.Date
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  origin        String?     @db.VarChar(10)
+  destination   String?     @db.VarChar(10)
+  departureDate DateTime?   @db.Date
+  finalDate     DateTime?   @db.Date
+  CabinType     CabinType? 
   tipoBusca     TipoBusca?
-  
+
   createdAt     DateTime @default(now()) @db.Timestamptz(6)
   updatedAt     DateTime @updatedAt @default(now()) @db.Timestamptz(6)
 
