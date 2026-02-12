@@ -1,6 +1,6 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { request } from 'cuimp';
-import { AzulSearchDto, SmilesSearchDto } from './search.dto';
+import { AzulSearchDto, CabinClass, SmilesSearchDto } from './search.dto';
 import { CrawlerService } from './crawler.service';
 
 @Injectable()
@@ -87,6 +87,8 @@ export class SearchService {
         insecureTLS: false,
       });
 
+      // this.logger.log(`Response Data`, response.data);
+
       const segments = (response.data as any)?.requestedFlightSegmentList;
       const rawFlightList = segments?.[0]?.flightList || [];
       const flights = rawFlightList.map((flight: any) => {
@@ -97,6 +99,7 @@ export class SearchService {
           uid: flight.uid,
           airline: flight.airline?.name,
           cabin: flight.cabin,
+          availableSeats: flight.availableSeats,
           stops: flight.stops,
           departure: {
             ...(isDirect && {
@@ -130,6 +133,11 @@ export class SearchService {
           }),
         };
       });
+
+      if (dto.cabin !== 'ALL') {
+        flights.filter((flight) => flight.cabin === dto.cabin);
+      }
+
       if (dto.orderBy === 'preco') {
         flights.sort((a: any, b: any) => a.miles - b.miles);
       } else if (dto.orderBy === 'custo_beneficio') {

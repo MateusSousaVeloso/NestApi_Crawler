@@ -4,7 +4,7 @@ import { Type } from 'class-transformer';
 
 export enum CabinClass {
   ALL = 'ALL',
-  ECONOMY = 'ECONOMY',
+  ECONOMIC = 'ECONOMIC',
   BUSINESS = 'BUSINESS',
   FIRST = 'FIRST',
 }
