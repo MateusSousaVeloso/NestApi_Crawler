@@ -21,6 +21,7 @@
       },
       {
         "include": "data/**/*",
+        "outDir": "./dist/src",
         "watchAssets": true
       }
     ]
