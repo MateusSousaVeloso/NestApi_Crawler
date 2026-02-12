@@ -89,6 +89,8 @@ model UserRoutePreference {
   destinationIata  String         @db.VarChar(10)
   cabinType        CabinType      @default(ANY)
   alertFrequency   AlertFrequency @default(DAILY)
+  dateStart        DateTime?      @db.Date
+  dateEnd          DateTime?      @db.Date
   isActive         Boolean        @default(true)
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt

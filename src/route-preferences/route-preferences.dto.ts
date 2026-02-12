@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsEnum, IsOptional, IsBoolean } from 'class-validator';
+import { IsString, IsNotEmpty, IsEnum, IsOptional, IsBoolean, IsDateString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { CabinType, AlertFrequency } from '../../prisma/generated/client';
 
@@ -40,6 +40,22 @@ export class CreateRoutePreferenceDto {
   @IsEnum(AlertFrequency)
   @IsOptional()
   alertFrequency?: AlertFrequency = AlertFrequency.DAILY;
+
+  @ApiPropertyOptional({
+    example: '2025-06-01',
+    description: 'Data de início do período de busca (formato ISO 8601)',
+  })
+  @IsDateString()
+  @IsOptional()
+  dateStart?: string;
+
+  @ApiPropertyOptional({
+    example: '2025-06-30',
+    description: 'Data de fim do período de busca (formato ISO 8601)',
+  })
+  @IsDateString()
+  @IsOptional()
+  dateEnd?: string;
 }
 
 export class UpdateRoutePreferenceDto extends PartialType(CreateRoutePreferenceDto) {
