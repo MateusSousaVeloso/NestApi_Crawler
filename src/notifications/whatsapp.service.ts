@@ -28,7 +28,6 @@ export class WhatsAppService {
           },
         },
       );
-      this.logger.log(`Mensagem enviada para ${phone}`);
     } catch (error: any) {
       this.logger.error(`Erro ao enviar mensagem para ${phone}: ${error.message}`);
     }

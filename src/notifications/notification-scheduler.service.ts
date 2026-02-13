@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../database/prisma.service';
 import { SearchService } from '../search/search.service';
@@ -7,7 +7,7 @@ import { formatFlightsForDate } from './flight-formatter';
 import { AlertFrequency } from '../../prisma/generated/client';
 
 @Injectable()
-export class NotificationSchedulerService implements OnModuleInit {
+export class NotificationSchedulerService {
   private readonly logger = new Logger(NotificationSchedulerService.name);
 
   constructor(
@@ -15,10 +15,6 @@ export class NotificationSchedulerService implements OnModuleInit {
     private readonly searchService: SearchService,
     private readonly whatsappService: WhatsAppService,
   ) {}
-
-  onModuleInit() {
-    this.logger.log('Notification Scheduler inicializado - monitorando rotas favoritas');
-  }
 
   @Cron(CronExpression.EVERY_6_HOURS)
   async handleEvery6Hours() {
@@ -95,7 +91,6 @@ export class NotificationSchedulerService implements OnModuleInit {
 
   private async processOneRoute(route: any) {
     const phone = route.user.phone_number;
-    const userName = route.user.name;
 
     const dates = this.getDateRange(route.dateStart, route.dateEnd);
 
@@ -110,10 +105,6 @@ export class NotificationSchedulerService implements OnModuleInit {
       BUSINESS: 'BUSINESS',
       FIRST: 'FIRST',
     };
-
-    this.logger.log(
-      `Processando rota ${route.originIata}->${route.destinationIata} para ${userName} (${phone}), ${dates.length} dia(s)`,
-    );
 
     for (const date of dates) {
       try {
@@ -138,9 +129,6 @@ export class NotificationSchedulerService implements OnModuleInit {
         );
 
         await this.whatsappService.sendMessage(phone, message);
-
-        // Pequeno delay entre mensagens para evitar rate limit
-        await this.delay(2000);
       } catch (error: any) {
         this.logger.error(`Erro ao buscar voos para ${date} na rota ${route.id}: ${error.message}`);
 
@@ -173,9 +161,5 @@ export class NotificationSchedulerService implements OnModuleInit {
     }
 
     return dates;
-  }
-
-  private delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
