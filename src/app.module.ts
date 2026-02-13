@@ -7,6 +7,7 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { RoutePreferencesModule } from './route-preferences/route-preferences.module';
 import { AirportsModule } from './airports/airports.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { FlightHistoryModule } from './flight-history/flight-history.module';
 // import { AdminModule } from './admin/admin.module';
 
 @Module({
@@ -21,6 +22,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     RoutePreferencesModule,
     AirportsModule,
     NotificationsModule,
+    FlightHistoryModule,
     // AdminModule,
   ],
 })

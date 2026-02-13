@@ -2,11 +2,14 @@ import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { request } from 'cuimp';
 import { AzulSearchDto, CabinClass, SmilesSearchDto } from './search.dto';
 import { CrawlerService } from './crawler.service';
+import { FlightHistoryService } from '../flight-history/flight-history.service';
 
 @Injectable()
 export class SearchService {
   private readonly logger = new Logger(SearchService.name);
   private readonly crawlerService: CrawlerService;
+
+  constructor(private readonly flightHistoryService: FlightHistoryService) {}
 
   async searchSmiles(dto: SmilesSearchDto) {
     this.logger.log('Procurando Voos na Smiles...');
@@ -151,6 +154,13 @@ export class SearchService {
           return ratioA - ratioB;
         });
       }
+      // Salvar todos os voos no histórico antes de limitar a 3
+      if (flights.length > 0) {
+        this.flightHistoryService
+          .saveSearchResults(dto.origin, dto.destination, date, 'Smiles', flights)
+          .catch(() => {});
+      }
+
       return flights.slice(0, 3);
     } catch (error: any) {
       this.handleCuimpError('Smiles', error);
@@ -231,7 +241,16 @@ export class SearchService {
         });
       }
 
-      return filteredFlights.slice(0, 3);
+      const topFlights = filteredFlights.slice(0, 3);
+
+      // Salvar todos os voos no histórico (não só o top 3)
+      if (filteredFlights.length > 0) {
+        this.flightHistoryService
+          .saveSearchResults(dto.origin, dto.destination, dto.departureDate, 'Azul', filteredFlights)
+          .catch(() => {});
+      }
+
+      return topFlights;
     } catch (error: any) {
       this.handleCuimpError('azul', error);
     }
