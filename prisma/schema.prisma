@@ -108,7 +108,7 @@ model TripInfo {
   destination   String?     @db.VarChar(10)
   departureDate DateTime?   @db.Date
   finalDate     DateTime?   @db.Date
-  CabinType     CabinType? 
+  CabinType     CabinType?
   tipoBusca     TipoBusca?
 
   createdAt     DateTime @default(now()) @db.Timestamptz(6)
@@ -118,4 +118,58 @@ model TripInfo {
   user          User     @relation(fields: [userPhone], references: [phone_number], onDelete: Cascade, onUpdate: Cascade)
 
   @@map("trip_info")
+}
+
+// Registro resumido de cada pesquisa de voo (uma linha por rota+data+provider)
+model FlightSearchResult {
+  id                String   @id @default(dbgenerated("gen_random_uuid()"))
+  flightDate        DateTime @db.Date
+  searchedAt        DateTime @default(now())
+  origin            String   @db.VarChar(10)
+  destination       String   @db.VarChar(10)
+  provider          String   @db.VarChar(30) // Smiles, Azul, etc.
+  economyMinMiles   Int?     // menor custo em milhas para Economy
+  premiumMinMiles   Int?     // menor custo em milhas para Premium
+  businessMinMiles  Int?     // menor custo em milhas para Business
+  firstMinMiles     Int?     // menor custo em milhas para First
+
+  details           FlightSearchDetail[]
+
+  @@map("flight_search_results")
+  @@index([origin, destination])
+  @@index([flightDate])
+  @@index([searchedAt])
+}
+
+// Cada voo individual encontrado na pesquisa
+model FlightSearchDetail {
+  id                String   @id @default(dbgenerated("gen_random_uuid()"))
+  searchResultId    String
+  searchResult      FlightSearchResult @relation(fields: [searchResultId], references: [id], onDelete: Cascade)
+
+  uid               String?  @db.VarChar(50)  // uid original do voo da API
+  flightCode        String?  @db.VarChar(150) // ex: AA958 ou CM700, CM427
+  airline           String?  @db.VarChar(100)
+  cabin             String   @db.VarChar(30)  // ECONOMIC, BUSINESS, FIRST, PREMIUM_ECONOMIC
+  cabinClass        String?  @db.VarChar(10)  // E9, B7 etc.
+  availableSeats    Int      @default(0)
+  stops             Int      @default(0)
+  departureTime     String   @db.VarChar(15)  // HH:mm
+  departureAirport  String   @db.VarChar(10)
+  arrivalTime       String   @db.VarChar(15)  // HH:mm (+1, +2 se necessário)
+  arrivalAirport    String   @db.VarChar(10)
+  departureDate     DateTime? // data/hora completa da partida
+  arrivalDate       DateTime? // data/hora completa da chegada
+  durationHours     Int      @default(0)
+  durationMinutes   Int      @default(0)
+  miles             Int      @default(0)
+  price             Decimal? @db.Decimal(10, 2)
+  currency          String?  @db.VarChar(10)
+  route             String   @db.VarChar(200) // GRU/MIA ou GRU/PTY/MIA ou GRU/JFK/LGA/ATL/MIA
+  legsJson          Json?    // detalhes das pernas do voo
+
+  @@map("flight_search_details")
+  @@index([searchResultId])
+  @@index([airline])
+  @@index([cabin])
 }

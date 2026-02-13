@@ -2,11 +2,14 @@ import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { request } from 'cuimp';
 import { AzulSearchDto, CabinClass, SmilesSearchDto } from './search.dto';
 import { CrawlerService } from './crawler.service';
+import { FlightHistoryService } from '../flight-history/flight-history.service';
 
 @Injectable()
 export class SearchService {
   private readonly logger = new Logger(SearchService.name);
   private readonly crawlerService: CrawlerService;
+
+  constructor(private readonly flightHistoryService: FlightHistoryService) {}
 
   async searchSmiles(dto: SmilesSearchDto) {
     this.logger.log('Procurando Voos na Smiles...');
@@ -49,8 +52,9 @@ export class SearchService {
   }
 
   private async fetchSmilesFlights(dto: SmilesSearchDto, date: string) {
+    // Sempre buscar com cabin=ALL para salvar todos os voos no histórico
     const params = new URLSearchParams({
-      cabin: dto.cabin || 'ALL',
+      cabin: 'ALL',
       originAirportCode: dto.origin,
       destinationAirportCode: dto.destination,
       departureDate: date,
@@ -91,7 +95,7 @@ export class SearchService {
 
       const segments = (response.data as any)?.requestedFlightSegmentList;
       const rawFlightList = segments?.[0]?.flightList || [];
-      let flights = rawFlightList.map((flight: any) => {
+      const allFlights = rawFlightList.map((flight: any) => {
         const firstLeg = flight.legList?.[0];
         const isDirect = flight.stops === 0;
 
@@ -134,7 +138,16 @@ export class SearchService {
         };
       });
 
-      if (dto.cabin !== 'ALL') {
+      // Salvar TODOS os voos no histórico ANTES de qualquer filtro
+      if (allFlights.length > 0) {
+        this.flightHistoryService
+          .saveSearchResults(dto.origin, dto.destination, date, 'Smiles', allFlights)
+          .catch(() => {});
+      }
+
+      // Agora filtra por cabin para a resposta ao usuário
+      let flights = allFlights;
+      if (dto.cabin && dto.cabin !== 'ALL') {
         flights = flights.filter((flight) => flight.cabin === dto.cabin);
       }
 
@@ -151,6 +164,7 @@ export class SearchService {
           return ratioA - ratioB;
         });
       }
+
       return flights.slice(0, 3);
     } catch (error: any) {
       this.handleCuimpError('Smiles', error);
@@ -206,9 +220,17 @@ export class SearchService {
 
       this.logger.log(`Voo da Azul buscado com sucesso via Cuimp`);
 
-      const flights = this.parseAzulFlights(response.data);
+      const allFlights = this.parseAzulFlights(response.data);
 
-      let filteredFlights = flights;
+      // Salvar TODOS os voos no histórico ANTES de qualquer filtro
+      if (allFlights.length > 0) {
+        this.flightHistoryService
+          .saveSearchResults(dto.origin, dto.destination, dto.departureDate, 'Azul', allFlights)
+          .catch(() => {});
+      }
+
+      // Filtra por cabin para a resposta
+      let filteredFlights = allFlights;
       if (dto.cabin && dto.cabin !== 'ALL') {
         const cabinMap: Record<string, string> = {
           ECONOMY: 'Economy',
@@ -216,7 +238,7 @@ export class SearchService {
           FIRST: 'First',
         };
         const targetCabin = cabinMap[dto.cabin] || dto.cabin;
-        filteredFlights = flights.filter((f) => f.cabin === targetCabin);
+        filteredFlights = allFlights.filter((f) => f.cabin === targetCabin);
       }
 
       if (dto.orderBy === 'preco') {
