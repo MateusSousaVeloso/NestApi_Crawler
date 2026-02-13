@@ -10,25 +10,28 @@ export class FlightHistoryController {
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Listar histórico de pesquisas de voos' })
+  @ApiOperation({ summary: 'Listar historico de pesquisas de voos' })
   @ApiResponse({ status: 200, description: 'Lista de pesquisas de voos.' })
   @ApiQuery({ name: 'origin', required: false, description: 'IATA da origem' })
   @ApiQuery({ name: 'destination', required: false, description: 'IATA do destino' })
   @ApiQuery({ name: 'dateFrom', required: false, description: 'Data inicial (YYYY-MM-DD)' })
   @ApiQuery({ name: 'dateTo', required: false, description: 'Data final (YYYY-MM-DD)' })
   @ApiQuery({ name: 'provider', required: false, description: 'Provedor (Smiles, Azul)' })
+  @ApiQuery({ name: 'airline', required: false, description: 'Companhia aerea (COPA, AMERICAN AIRLINES, etc.)' })
+  @ApiQuery({ name: 'stops', required: false, description: 'Numero de paradas (0=direto, 1, 2)' })
+  @ApiQuery({ name: 'cabin', required: false, description: 'Classe (ECONOMIC, BUSINESS, FIRST)' })
   async findAll(@Query() filter: FlightHistoryFilterDto) {
     return this.flightHistoryService.findAll(filter);
   }
 
   @Get(':id')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Detalhes de uma pesquisa de voo específica' })
+  @ApiOperation({ summary: 'Detalhes de uma pesquisa de voo especifica' })
   @ApiResponse({ status: 200, description: 'Detalhes dos voos encontrados.' })
-  @ApiResponse({ status: 404, description: 'Pesquisa não encontrada.' })
+  @ApiResponse({ status: 404, description: 'Pesquisa nao encontrada.' })
   async findOne(@Param('id') id: string) {
     const result = await this.flightHistoryService.findOne(id);
-    if (!result) throw new NotFoundException('Pesquisa de voo não encontrada.');
+    if (!result) throw new NotFoundException('Pesquisa de voo nao encontrada.');
     return result;
   }
 }

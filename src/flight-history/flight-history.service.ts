@@ -9,8 +9,84 @@ export class FlightHistoryService {
   constructor(private prisma: PrismaService) {}
 
   /**
+   * Classifica a cabin para o cálculo de mínimos.
+   * ECONOMIC, Economy -> economy
+   * PREMIUM_ECONOMIC, Premium, W -> premium
+   * BUSINESS, Business, Executiva, J, C -> business
+   * FIRST, First, F -> first
+   */
+  private classifyCabin(cabin: string): 'economy' | 'premium' | 'business' | 'first' {
+    const c = (cabin || '').toUpperCase();
+    if (c.includes('FIRST') || c === 'F') return 'first';
+    if (c.includes('BUSINESS') || c.includes('EXECUTIVA') || c === 'J' || c === 'C') return 'business';
+    if (c.includes('PREMIUM') || c === 'W') return 'premium';
+    return 'economy';
+  }
+
+  /**
+   * Monta a rota a partir dos legs do voo.
+   * Para voo direto GRU->MIA: "GRU/MIA"
+   * Para 1 parada GRU->PTY->MIA: "GRU/PTY/MIA"
+   * Para 2 paradas GRU->JFK->ATL->MIA: "GRU/JFK/ATL/MIA"
+   */
+  private buildRoute(f: any, origin: string, destination: string): string {
+    if (!f.legs || f.legs.length === 0) {
+      // Voo direto
+      return `${f.departure?.airport || origin}/${f.arrival?.airport || destination}`;
+    }
+
+    // Monta rota com todos os aeroportos únicos em ordem
+    const airports: string[] = [];
+    for (const leg of f.legs) {
+      const dep = leg.departure?.airport;
+      const arr = leg.arrival?.airport;
+      if (dep && !airports.includes(dep)) airports.push(dep);
+      if (arr && !airports.includes(arr)) airports.push(arr);
+    }
+
+    // Se o primeiro aeroporto não é a origem, adiciona
+    if (airports.length === 0 || airports[0] !== (f.departure?.airport || origin)) {
+      airports.unshift(f.departure?.airport || origin);
+    }
+    // Se o último não é o destino, adiciona
+    const lastAirport = airports[airports.length - 1];
+    if (lastAirport !== (f.arrival?.airport || destination)) {
+      airports.push(f.arrival?.airport || destination);
+    }
+
+    return airports.join('/');
+  }
+
+  /**
+   * Extrai hora no formato HH:mm de uma data ISO string.
+   */
+  private extractTime(dateStr: string | null | undefined): string {
+    if (!dateStr) return '00:00';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '00:00';
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  }
+
+  /**
+   * Calcula o sufixo de dias (+1, +2, etc.) entre partida e chegada.
+   */
+  private getDayOffset(depStr: string | null, arrStr: string | null): string {
+    if (!depStr || !arrStr) return '';
+    const dep = new Date(depStr);
+    const arr = new Date(arrStr);
+    if (isNaN(dep.getTime()) || isNaN(arr.getTime())) return '';
+
+    const depDay = new Date(dep.getFullYear(), dep.getMonth(), dep.getDate());
+    const arrDay = new Date(arr.getFullYear(), arr.getMonth(), arr.getDate());
+    const diffDays = Math.round((arrDay.getTime() - depDay.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diffDays > 0) return `+${diffDays}`;
+    return '';
+  }
+
+  /**
    * Salva os resultados de uma pesquisa de voos no histórico.
-   * Agrupa por cabin e calcula o menor custo por classe.
+   * Salva TODOS os voos com informações completas.
    */
   async saveSearchResults(
     origin: string,
@@ -21,7 +97,7 @@ export class FlightHistoryService {
   ) {
     if (!flights || flights.length === 0) return;
 
-    // Calcula menor milhas por classe
+    // Calcula menor milhas/preço por classe
     let economyMin: number | null = null;
     let premiumMin: number | null = null;
     let businessMin: number | null = null;
@@ -31,15 +107,14 @@ export class FlightHistoryService {
       const cost = f.miles || f.price || 0;
       if (cost <= 0) continue;
 
-      const cabin = (f.cabin || '').toUpperCase();
-      if (cabin.includes('FIRST') || cabin === 'F') {
+      const cls = this.classifyCabin(f.cabin);
+      if (cls === 'first') {
         if (firstMin === null || cost < firstMin) firstMin = cost;
-      } else if (cabin.includes('BUSINESS') || cabin.includes('EXECUTIVA') || cabin === 'J' || cabin === 'C') {
+      } else if (cls === 'business') {
         if (businessMin === null || cost < businessMin) businessMin = cost;
-      } else if (cabin.includes('PREMIUM') || cabin === 'W') {
+      } else if (cls === 'premium') {
         if (premiumMin === null || cost < premiumMin) premiumMin = cost;
       } else {
-        // Economy / Economic / qualquer outro
         if (economyMin === null || cost < economyMin) economyMin = cost;
       }
     }
@@ -58,35 +133,14 @@ export class FlightHistoryService {
           details: {
             create: flights.map((f) => {
               const isDirect = f.stops === 0;
-              const depDate = f.departure?.date ? new Date(f.departure.date) : null;
-              const arrDate = f.arrival?.date ? new Date(f.arrival.date) : null;
+              const depDateStr = f.departure?.date || null;
+              const arrDateStr = f.arrival?.date || null;
 
-              // Monta string de horário
-              const depTime = depDate
-                ? `${String(depDate.getHours()).padStart(2, '0')}:${String(depDate.getMinutes()).padStart(2, '0')}`
-                : '00:00';
+              const depTime = this.extractTime(depDateStr);
+              const dayOffset = this.getDayOffset(depDateStr, arrDateStr);
+              const arrTime = this.extractTime(arrDateStr) + dayOffset;
 
-              let arrTime = arrDate
-                ? `${String(arrDate.getHours()).padStart(2, '0')}:${String(arrDate.getMinutes()).padStart(2, '0')}`
-                : '00:00';
-
-              // Verifica se é +1 dia
-              if (depDate && arrDate && arrDate.toDateString() !== depDate.toDateString()) {
-                arrTime += '+1';
-              }
-
-              // Monta a rota (ex: GRU/MIA ou GRU/BSB/MIA)
-              let route = f.departure?.airport || origin;
-              if (f.legs && f.legs.length > 0) {
-                const stops = f.legs
-                  .slice(0, -1)
-                  .map((leg: any) => leg.arrival?.airport)
-                  .filter(Boolean);
-                if (stops.length > 0) {
-                  route += '/' + stops.join('/');
-                }
-              }
-              route += '/' + (f.arrival?.airport || destination);
+              const route = this.buildRoute(f, origin, destination);
 
               // Flight code
               let flightCode = f.departure?.flightCode || null;
@@ -94,15 +148,21 @@ export class FlightHistoryService {
                 flightCode = f.legs.map((leg: any) => leg.flightCode).filter(Boolean).join(', ');
               }
 
-              // Cabin class code (extrair da cabine, ex: T6, X9)
-              const cabinClass = f.availableSeats
-                ? `${(f.cabin || 'Y').charAt(0).toUpperCase()}${f.availableSeats}`
+              // Cabin class code (ex: E9 = Economy 9 seats)
+              const cabinLetter = (f.cabin || 'Y').charAt(0).toUpperCase();
+              const cabinClass = f.availableSeats != null
+                ? `${cabinLetter}${f.availableSeats}`
                 : null;
 
+              // Datas completas
+              const departureDate = depDateStr ? new Date(depDateStr) : null;
+              const arrivalDate = arrDateStr ? new Date(arrDateStr) : null;
+
               return {
+                uid: f.uid || null,
                 flightCode,
                 airline: f.airline || null,
-                cabin: f.cabin || 'Economy',
+                cabin: f.cabin || 'ECONOMIC',
                 cabinClass,
                 availableSeats: f.availableSeats || 0,
                 stops: f.stops || 0,
@@ -110,6 +170,8 @@ export class FlightHistoryService {
                 departureAirport: f.departure?.airport || origin,
                 arrivalTime: arrTime,
                 arrivalAirport: f.arrival?.airport || destination,
+                departureDate,
+                arrivalDate,
                 durationHours: f.duration?.hours || 0,
                 durationMinutes: f.duration?.minutes || 0,
                 miles: f.miles || 0,
@@ -124,12 +186,12 @@ export class FlightHistoryService {
       });
 
       this.logger.log(
-        `Salvo ${flights.length} voos no histórico: ${origin}->${destination} em ${flightDate} (${provider})`,
+        `Salvo ${flights.length} voos no historico: ${origin}->${destination} em ${flightDate} (${provider})`,
       );
 
       return searchResult;
     } catch (error: any) {
-      this.logger.error(`Erro ao salvar histórico de voos: ${error.message}`);
+      this.logger.error(`Erro ao salvar historico de voos: ${error.message}`);
     }
   }
 
@@ -156,6 +218,38 @@ export class FlightHistoryService {
       if (filter.dateTo) {
         where.flightDate.lte = new Date(filter.dateTo + 'T23:59:59');
       }
+    }
+
+    // Filtro por airline nos detalhes
+    if (filter.airline) {
+      where.details = {
+        some: {
+          airline: { contains: filter.airline, mode: 'insensitive' },
+        },
+      };
+    }
+
+    // Filtro por paradas
+    if (filter.stops !== undefined && filter.stops !== null) {
+      const stopsFilter = Number(filter.stops);
+      where.details = {
+        ...where.details,
+        some: {
+          ...(where.details?.some || {}),
+          stops: stopsFilter,
+        },
+      };
+    }
+
+    // Filtro por cabin
+    if (filter.cabin) {
+      where.details = {
+        ...where.details,
+        some: {
+          ...(where.details?.some || {}),
+          cabin: { contains: filter.cabin, mode: 'insensitive' },
+        },
+      };
     }
 
     return this.prisma.flightSearchResult.findMany({

@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsDateString } from 'class-validator';
+import { IsOptional, IsString, IsDateString, IsNumberString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class FlightHistoryFilterDto {
@@ -26,4 +26,19 @@ export class FlightHistoryFilterDto {
   @IsString()
   @IsOptional()
   provider?: string;
+
+  @ApiPropertyOptional({ example: 'COPA', description: 'Filtrar por companhia aerea' })
+  @IsString()
+  @IsOptional()
+  airline?: string;
+
+  @ApiPropertyOptional({ example: '0', description: 'Filtrar por numero de paradas (0=direto, 1, 2)' })
+  @IsNumberString()
+  @IsOptional()
+  stops?: string;
+
+  @ApiPropertyOptional({ example: 'ECONOMIC', description: 'Filtrar por classe (ECONOMIC, BUSINESS, FIRST, PREMIUM_ECONOMIC)' })
+  @IsString()
+  @IsOptional()
+  cabin?: string;
 }
