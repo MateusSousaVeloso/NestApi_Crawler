@@ -96,17 +96,22 @@ model TripInfo {
 }
 
 model FlightSearchResult {
-  id               String               @id @default(dbgenerated("gen_random_uuid()"))
-  flightDate       DateTime             @db.Date
-  searchedAt       DateTime             @default(now())
-  origin           String               @db.VarChar(10)
-  destination      String               @db.VarChar(10)
-  provider         String               @db.VarChar(30)
-  economyMinMiles  Int?
-  premiumMinMiles  Int?
-  businessMinMiles Int?
-  firstMinMiles    Int?
-  details          FlightSearchDetail[]
+  id                String   @id @default(dbgenerated("gen_random_uuid()"))
+  flightDate        DateTime @db.Date
+  searchedAt        DateTime @default(now())
+  origin            String   @db.VarChar(10)
+  destination       String   @db.VarChar(10)
+  provider          String   @db.VarChar(30) // Smiles, Azul, etc.
+  economyMinMiles   Int?     // menor custo em milhas para Economy
+  premiumMinMiles   Int?     // menor custo em milhas para Premium
+  businessMinMiles  Int?     // menor custo em milhas para Business
+  firstMinMiles     Int?     // menor custo em milhas para First
+  economyMinJson    Json?    // JSON completo do voo mais barato Economy
+  premiumMinJson    Json?    // JSON completo do voo mais barato Premium
+  businessMinJson   Json?    // JSON completo do voo mais barato Business
+  firstMinJson      Json?    // JSON completo do voo mais barato First
+
+  details           FlightSearchDetail[]
 
   @@index([origin, destination])
   @@index([flightDate])
