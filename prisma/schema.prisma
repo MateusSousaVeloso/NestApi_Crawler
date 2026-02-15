@@ -132,6 +132,10 @@ model FlightSearchResult {
   premiumMinMiles   Int?     // menor custo em milhas para Premium
   businessMinMiles  Int?     // menor custo em milhas para Business
   firstMinMiles     Int?     // menor custo em milhas para First
+  economyMinJson    Json?    // JSON completo do voo mais barato Economy
+  premiumMinJson    Json?    // JSON completo do voo mais barato Premium
+  businessMinJson   Json?    // JSON completo do voo mais barato Business
+  firstMinJson      Json?    // JSON completo do voo mais barato First
 
   details           FlightSearchDetail[]
 

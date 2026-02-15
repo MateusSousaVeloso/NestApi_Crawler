@@ -97,11 +97,15 @@ export class FlightHistoryService {
   ) {
     if (!flights || flights.length === 0) return;
 
-    // Calcula menor milhas/preço por classe
+    // Calcula menor milhas/preço por classe e guarda o voo completo
     let economyMin: number | null = null;
     let premiumMin: number | null = null;
     let businessMin: number | null = null;
     let firstMin: number | null = null;
+    let economyMinFlight: any = null;
+    let premiumMinFlight: any = null;
+    let businessMinFlight: any = null;
+    let firstMinFlight: any = null;
 
     for (const f of flights) {
       const cost = f.miles || f.price || 0;
@@ -109,15 +113,53 @@ export class FlightHistoryService {
 
       const cls = this.classifyCabin(f.cabin);
       if (cls === 'first') {
-        if (firstMin === null || cost < firstMin) firstMin = cost;
+        if (firstMin === null || cost < firstMin) { firstMin = cost; firstMinFlight = f; }
       } else if (cls === 'business') {
-        if (businessMin === null || cost < businessMin) businessMin = cost;
+        if (businessMin === null || cost < businessMin) { businessMin = cost; businessMinFlight = f; }
       } else if (cls === 'premium') {
-        if (premiumMin === null || cost < premiumMin) premiumMin = cost;
+        if (premiumMin === null || cost < premiumMin) { premiumMin = cost; premiumMinFlight = f; }
       } else {
-        if (economyMin === null || cost < economyMin) economyMin = cost;
+        if (economyMin === null || cost < economyMin) { economyMin = cost; economyMinFlight = f; }
       }
     }
+
+    // Constrói JSON normalizado do voo mais barato (mesma shape que FlightSearchDetail)
+    const buildMinJson = (f: any): object | undefined => {
+      if (!f) return undefined;
+      const depDateStr = f.departure?.date || null;
+      const arrDateStr = f.arrival?.date || null;
+      const depTime = this.extractTime(depDateStr);
+      const dayOffset = this.getDayOffset(depDateStr, arrDateStr);
+      const arrTime = this.extractTime(arrDateStr) + dayOffset;
+      const route = this.buildRoute(f, origin, destination);
+      const isDirect = f.stops === 0;
+      let flightCode = f.departure?.flightCode || null;
+      if (!isDirect && f.legs) {
+        flightCode = f.legs.map((leg: any) => leg.flightCode).filter(Boolean).join(', ');
+      }
+      const cabinLetter = (f.cabin || 'Y').charAt(0).toUpperCase();
+      const cabinClass = f.availableSeats != null ? `${cabinLetter}${f.availableSeats}` : null;
+      return {
+        flightCode,
+        airline: f.airline || null,
+        cabin: f.cabin || 'ECONOMIC',
+        cabinClass,
+        availableSeats: f.availableSeats || 0,
+        stops: f.stops || 0,
+        departureTime: depTime,
+        departureAirport: f.departure?.airport || origin,
+        arrivalTime: arrTime,
+        arrivalAirport: f.arrival?.airport || destination,
+        departureDate: depDateStr || null,
+        arrivalDate: arrDateStr || null,
+        durationHours: f.duration?.hours || 0,
+        durationMinutes: f.duration?.minutes || 0,
+        miles: f.miles || 0,
+        price: f.price ? Number(f.price) : null,
+        currency: f.currency || null,
+        route,
+      };
+    };
 
     try {
       const searchResult = await this.prisma.flightSearchResult.create({
@@ -130,6 +172,10 @@ export class FlightHistoryService {
           premiumMinMiles: premiumMin,
           businessMinMiles: businessMin,
           firstMinMiles: firstMin,
+          economyMinJson: buildMinJson(economyMinFlight),
+          premiumMinJson: buildMinJson(premiumMinFlight),
+          businessMinJson: buildMinJson(businessMinFlight),
+          firstMinJson: buildMinJson(firstMinFlight),
           details: {
             create: flights.map((f) => {
               const isDirect = f.stops === 0;
