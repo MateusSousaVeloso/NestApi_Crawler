@@ -59,6 +59,24 @@ model History {
   @@map("histories")
 }
 
+enum TipoBusca {
+  preco
+  custo_beneficio
+}
+
+enum CabinType {
+  ANY
+  ECONOMY
+  BUSINESS
+  FIRST
+}
+
+enum AlertFrequency {
+  DAILY
+  EVERY_6_HOURS
+  EVERY_12_HOURS
+}
+
 model UserRoutePreference {
   id              String         @id @default(dbgenerated("gen_random_uuid()"))
   originCity      String         @db.VarChar(100)
@@ -101,18 +119,18 @@ model FlightSearchResult {
   searchedAt        DateTime @default(now())
   origin            String   @db.VarChar(10)
   destination       String   @db.VarChar(10)
-  provider          String   @db.VarChar(30) // Smiles, Azul, etc.
-  economyMinMiles   Int?     // menor custo em milhas para Economy
-  premiumMinMiles   Int?     // menor custo em milhas para Premium
-  businessMinMiles  Int?     // menor custo em milhas para Business
-  firstMinMiles     Int?     // menor custo em milhas para First
-  economyMinJson    Json?    // JSON completo do voo mais barato Economy
-  premiumMinJson    Json?    // JSON completo do voo mais barato Premium
-  businessMinJson   Json?    // JSON completo do voo mais barato Business
-  firstMinJson      Json?    // JSON completo do voo mais barato First
-
+  provider          String   @db.VarChar(30)
+  economyMinMiles   Int?
+  premiumMinMiles   Int?
+  businessMinMiles  Int?
+  firstMinMiles     Int?
+  economyMinJson    Json?
+  premiumMinJson    Json?
+  businessMinJson   Json?
+  firstMinJson      Json?
   details           FlightSearchDetail[]
 
+  @@unique([origin, destination, flightDate, provider])
   @@index([origin, destination])
   @@index([flightDate])
   @@index([searchedAt])
@@ -148,22 +166,4 @@ model FlightSearchDetail {
   @@index([airline])
   @@index([cabin])
   @@map("flight_search_details")
-}
-
-enum TipoBusca {
-  preco
-  custo_beneficio
-}
-
-enum CabinType {
-  ANY
-  ECONOMY
-  BUSINESS
-  FIRST
-}
-
-enum AlertFrequency {
-  DAILY
-  EVERY_6_HOURS
-  EVERY_12_HOURS
 }

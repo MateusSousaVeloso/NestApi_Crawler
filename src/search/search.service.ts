@@ -52,7 +52,6 @@ export class SearchService {
   }
 
   private async fetchSmilesFlights(dto: SmilesSearchDto, date: string) {
-    // Sempre buscar com cabin=ALL para salvar todos os voos no histórico
     const params = new URLSearchParams({
       cabin: 'ALL',
       originAirportCode: dto.origin,
@@ -90,8 +89,6 @@ export class SearchService {
         },
         insecureTLS: false,
       });
-
-      // this.logger.log(`Response Data`, response.data);
 
       const segments = (response.data as any)?.requestedFlightSegmentList;
       const rawFlightList = segments?.[0]?.flightList || [];
@@ -138,14 +135,12 @@ export class SearchService {
         };
       });
 
-      // Salvar TODOS os voos no histórico ANTES de qualquer filtro
       if (allFlights.length > 0) {
         this.flightHistoryService
           .saveSearchResults(dto.origin, dto.destination, date, 'Smiles', allFlights)
           .catch(() => {});
       }
 
-      // Agora filtra por cabin para a resposta ao usuário
       let flights = allFlights;
       if (dto.cabin && dto.cabin !== 'ALL') {
         flights = flights.filter((flight) => flight.cabin === dto.cabin);
@@ -222,14 +217,12 @@ export class SearchService {
 
       const allFlights = this.parseAzulFlights(response.data);
 
-      // Salvar TODOS os voos no histórico ANTES de qualquer filtro
       if (allFlights.length > 0) {
         this.flightHistoryService
           .saveSearchResults(dto.origin, dto.destination, dto.departureDate, 'Azul', allFlights)
           .catch(() => {});
       }
 
-      // Filtra por cabin para a resposta
       let filteredFlights = allFlights;
       if (dto.cabin && dto.cabin !== 'ALL') {
         const cabinMap: Record<string, string> = {
@@ -262,15 +255,12 @@ export class SearchService {
   private parseAzulFlights(data: any): any[] {
     const flights: any[] = [];
 
-    // Itera sobre cada dia retornado
     for (const dayData of data || []) {
       const journeys = dayData.journeys || [];
 
       for (const journey of journeys) {
-        // Pula voos indisponíveis
         if (!journey.status?.available) continue;
 
-        // Encontra a tarifa mais barata disponível
         const availableFare = journey.fares?.find((f: any) => f.paxFares?.length > 0);
         if (!availableFare) continue;
 
@@ -278,7 +268,6 @@ export class SearchService {
         const segments = journey.segments || [];
         const isDirect = (identifier.connections?.count || 0) === 0;
 
-        // Determina a cabin baseado na categoria do produto
         const cabin = availableFare.productClass?.category || 'Economy';
 
         const flight: any = {
@@ -309,7 +298,6 @@ export class SearchService {
           productClass: availableFare.productClass?.name,
         };
 
-        // Adiciona legs se não for direto
         if (!isDirect && segments.length > 0) {
           flight.legs = segments.map((segment: any) => ({
             flightCode: `${segment.identifier.carrierCode}${segment.identifier.flightNumber}`,
@@ -347,26 +335,6 @@ export class SearchService {
 
     return minSeats === Number.MAX_VALUE ? 0 : minSeats;
   }
-
-  /**
-   * Busca voos na API da LATAM (comentado - implementação futura)
-   */
-  // async searchLatam(dto: FlightSearchDto) {
-  //   this.logger.log(`LATAM search: ${dto.origin} -> ${dto.destination} on ${dto.departureDate}`);
-  //
-  //   const credentials = await this.crawlerService.getLatamCredentials();
-  //
-  //   // TODO: Implementar chamada à API da LATAM
-  //   // A LATAM possui uma API mais complexa que requer:
-  //   // 1. Autenticação OAuth
-  //   // 2. Headers específicos
-  //   // 3. Payload diferente
-  //
-  //   return {
-  //     provider: 'latam',
-  //     message: 'LATAM search not implemented yet',
-  //   };
-  // }
 
   private handleCuimpError(provider: string, error: any) {
     this.logger.error(`Erro ${provider} (Cuimp): ${error.message}`);

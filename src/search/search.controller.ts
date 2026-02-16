@@ -27,13 +27,4 @@ export class SearchController {
     return this.searchService.searchAzul(dto);
   }
 
-  // @Post('latam')
-  // @HttpCode(HttpStatus.OK)
-  // @ApiOperation({ summary: 'Buscar voos na LATAM' })
-  // @ApiResponse({ status: 200, description: 'Resultados da busca na LATAM.' })
-  // @ApiResponse({ status: 502, description: 'Falha ao comunicar com a API da LATAM.' })
-  // @ApiBody({ type: FlightSearchDto })
-  // async searchLatam(@Body() dto: FlightSearchDto) {
-  //   return this.searchService.searchLatam(dto);
-  // }
 }

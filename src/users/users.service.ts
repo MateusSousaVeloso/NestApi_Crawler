@@ -86,45 +86,4 @@ export class UsersService {
       where: { id },
     });
   }
-
-  // async checkSubscriptionStatus(email: string) {
-  //   const user = await this.prisma.user.findUnique({
-  //     where: { email },
-  //   });
-  //   if (!user) throw new NotFoundException('Usuário não existe.');
-
-  //   const sub: any = user.subscription || {};
-  //   const expiresAt = sub.expires_at ? new Date(sub.expires_at) : null;
-  //   const now = new Date();
-
-  //   // Lógica simples de expiração
-  //   const isActive = sub.status === 'active' && expiresAt && expiresAt > now;
-  //   const daysRemaining = expiresAt ? Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 3600 * 24)) : 0;
-
-  //   if (!isActive) {
-  //     return {
-  //       user_id: user.id,
-  //       exists: true,
-  //       subscription: {
-  //         is_active: false,
-  //         status: 'past_due',
-  //         block_reason: 'payment_required',
-  //       },
-  //     };
-  //   }
-
-  //   return {
-  //     user_id: user.id,
-  //     exists: true,
-  //     subscription: {
-  //       is_active: true,
-  //       status: sub.status,
-  //       days_remaining: daysRemaining,
-  //     },
-  //     context: {
-  //       last_interaction: new Date().toISOString(),
-  //       user_name: user.name.split(' ')[0],
-  //     },
-  //   };
-  // }
 }

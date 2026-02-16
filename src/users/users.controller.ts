@@ -34,19 +34,11 @@ export class UsersController {
   @UseGuards(AccessTokenGuard)
   @ApiBearerAuth()
   @Delete('me')
-  @HttpCode(HttpStatus.NO_CONTENT) // 204
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Excluir a própria conta' })
   @ApiResponse({ status: 204, description: 'Conta excluída com sucesso.' })
   @ApiResponse({ status: 401, description: 'Não autorizado.' })
   async delete(@Req() req) {
     return this.usersService.delete(req.user.id);
   }
-
-  // @Get('check/:phone_number')
-  // @ApiOperation({ summary: 'Verificar status da assinatura (Bot/n8n)' })
-  // @ApiParam({ name: 'phone_number', example: '+55 (11) 91234-1234' })
-  // @ApiResponse({ status: 200, description: 'Retorna status da assinatura e existência do usuário.' })
-  // async checkStatus(@Param('phone_number') phoneNumber: string) {
-  //   return this.usersService.checkSubscriptionStatus(phoneNumber);
-  // }
 }

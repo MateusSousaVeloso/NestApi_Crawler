@@ -7,7 +7,7 @@ import { UsersModule } from '../users/users.module';
 import { AccessTokenStrategy } from './strategies/accessToken.strategy';
 import { RefreshTokenStrategy } from './strategies/refreshToken.strategy';
 import { PrismaService } from '../database/prisma.service';
-import { jwtConstantsFactory, JWT_CONSTANTS_TOKEN, JwtConstants } from './constants'; // <--- Importe
+import { jwtConstantsFactory, JWT_CONSTANTS_TOKEN, JwtConstants } from './constants';
 
 @Module({
   imports: [
