@@ -14,8 +14,6 @@ export class PrismaService extends PrismaClient {
     });
 
     const adapter = new PrismaPg(pool);
-    super({ adapter, log: []
-      // log: ['error'],
-     });
+    super({ adapter, log: [] });
   }
 }

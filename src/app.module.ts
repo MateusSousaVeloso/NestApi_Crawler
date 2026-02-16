@@ -8,7 +8,6 @@ import { RoutePreferencesModule } from './route-preferences/route-preferences.mo
 import { AirportsModule } from './airports/airports.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { FlightHistoryModule } from './flight-history/flight-history.module';
-// import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -23,7 +22,6 @@ import { FlightHistoryModule } from './flight-history/flight-history.module';
     AirportsModule,
     NotificationsModule,
     FlightHistoryModule,
-    // AdminModule,
   ],
 })
 export class AppModule {}
