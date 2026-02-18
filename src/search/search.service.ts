@@ -88,7 +88,6 @@ export class SearchService {
         },
         insecureTLS: false,
       });
-      this.logger.log(`Voo da Smiles buscado com sucesso via Cuimp`, response.data);
       const segments = (response.data as any)?.requestedFlightSegmentList;
       const rawFlightList = segments?.[0]?.flightList || [];
       const allFlights = rawFlightList.map((flight: any) => {
