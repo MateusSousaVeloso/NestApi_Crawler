@@ -26,7 +26,7 @@ export class CreateRoutePreferenceDto {
   @ApiPropertyOptional({
     enum: CabinType,
     default: CabinType.ANY,
-    description: 'Tipo de cabine preferida (ANY = Qualquer, ECONOMY = Econômica, BUSINESS = Executiva, FIRST = Primeira Classe)',
+    description: 'Tipo de cabine preferida (ANY = Qualquer, ECONOMIC = Econômica, BUSINESS = Executiva, FIRST = Primeira Classe)',
   })
   @IsEnum(CabinType)
   @IsOptional()

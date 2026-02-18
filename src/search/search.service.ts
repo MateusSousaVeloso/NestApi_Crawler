@@ -12,8 +12,6 @@ export class SearchService {
   constructor(private readonly flightHistoryService: FlightHistoryService) {}
 
   async searchSmiles(dto: SmilesSearchDto) {
-    this.logger.log('Procurando Voos na Smiles...');
-
     if (dto.finalDate) {
       const start = new Date(dto.departureDate + 'T00:00:00');
       const end = new Date(dto.finalDate + 'T00:00:00');
@@ -44,6 +42,7 @@ export class SearchService {
         grouped[date] = results[index];
       });
 
+      this.logger.log(`Voos da smile encontrados com sucesso!`);
       return grouped;
     }
     const flights = await this.fetchSmilesFlights(dto, dto.departureDate);
@@ -89,7 +88,7 @@ export class SearchService {
         },
         insecureTLS: false,
       });
-
+      this.logger.log(`Voo da Smiles buscado com sucesso via Cuimp`, response.data);
       const segments = (response.data as any)?.requestedFlightSegmentList;
       const rawFlightList = segments?.[0]?.flightList || [];
       const allFlights = rawFlightList.map((flight: any) => {
@@ -159,7 +158,6 @@ export class SearchService {
           return ratioA - ratioB;
         });
       }
-
       return flights.slice(0, 3);
     } catch (error: any) {
       this.handleCuimpError('Smiles', error);
@@ -226,7 +224,7 @@ export class SearchService {
       let filteredFlights = allFlights;
       if (dto.cabin && dto.cabin !== 'ALL') {
         const cabinMap: Record<string, string> = {
-          ECONOMY: 'Economy',
+          ECONOMIC: 'Economic',
           BUSINESS: 'Business',
           FIRST: 'First',
         };
@@ -268,7 +266,7 @@ export class SearchService {
         const segments = journey.segments || [];
         const isDirect = (identifier.connections?.count || 0) === 0;
 
-        const cabin = availableFare.productClass?.category || 'Economy';
+        const cabin = availableFare.productClass?.category || 'Economic';
 
         const flight: any = {
           uid: journey.journeyKey,

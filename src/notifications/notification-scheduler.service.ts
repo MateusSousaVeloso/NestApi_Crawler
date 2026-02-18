@@ -101,7 +101,7 @@ export class NotificationSchedulerService {
 
     const cabinMap: Record<string, string> = {
       ANY: 'ALL',
-      ECONOMY: 'ECONOMIC',
+      ECONOMIC: 'ECONOMIC',
       BUSINESS: 'BUSINESS',
       FIRST: 'FIRST',
     };
