@@ -14,8 +14,6 @@ export class SearchService {
   ) {}
 
   async searchSmiles(dto: SmilesSearchDto) {
-    this.logger.log('Procurando Voos na Smiles...');
-
     if (dto.finalDate) {
       const start = new Date(dto.departureDate + 'T00:00:00');
       const end = new Date(dto.finalDate + 'T00:00:00');
@@ -50,6 +48,7 @@ export class SearchService {
         grouped[date] = results[index];
       });
 
+      this.logger.log(`Voos da smile encontrados com sucesso!`);
       return grouped;
     }
     const flights = await this.fetchSmilesFlights(dto, dto.departureDate);
@@ -246,7 +245,7 @@ export class SearchService {
         const segments = journey.segments || [];
         const isDirect = (identifier.connections?.count || 0) === 0;
 
-        const cabin = availableFare.productClass?.category || 'Economy';
+        const cabin = availableFare.productClass?.category || 'Economic';
 
         const flight: ParsedFlight = {
           uid: journey.journeyKey,

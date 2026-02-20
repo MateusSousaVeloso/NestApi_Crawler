@@ -8,12 +8,12 @@ export class FlightHistoryService {
 
   constructor(private prisma: PrismaService) {}
 
-  private classifyCabin(cabin: string): 'economy' | 'premium' | 'business' | 'first' {
+  private classifyCabin(cabin: string): 'economic' | 'premium' | 'business' | 'first' {
     const c = (cabin || '').toUpperCase();
     if (c.includes('FIRST') || c === 'F') return 'first';
     if (c.includes('BUSINESS') || c.includes('EXECUTIVA') || c === 'J' || c === 'C') return 'business';
     if (c.includes('PREMIUM') || c === 'W') return 'premium';
-    return 'economy';
+    return 'economic';
   }
 
   private buildRoute(f: any, origin: string, destination: string): string {
@@ -208,10 +208,6 @@ export class FlightHistoryService {
           },
         });
       });
-
-      this.logger.log(
-        `Upsert ${flights.length} voos: ${normalizedOrigin}->${normalizedDest} em ${flightDate} (${provider})`,
-      );
 
       return result;
     } catch (error: any) {

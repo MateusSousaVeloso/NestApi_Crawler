@@ -31,7 +31,6 @@ function formatMiles(miles: number): string {
 function formatCabin(cabin: string): string {
   const map: Record<string, string> = {
     ECONOMIC: 'Econômica',
-    ECONOMY: 'Econômica',
     BUSINESS: 'Executiva',
     FIRST: 'Primeira Classe',
     ALL: 'Todas',
