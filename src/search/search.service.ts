@@ -217,7 +217,7 @@ export class SearchService {
       }
 
       const cabinMap: Record<string, string> = {
-        ECONOMY: 'Economy',
+        ECONOMIC: 'Economic',
         BUSINESS: 'Business',
         FIRST: 'First',
       };

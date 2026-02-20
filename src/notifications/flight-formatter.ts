@@ -1,12 +1,6 @@
-const MONTHS_PT = [
-  'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
-];
+const MONTHS_PT = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 
-const WEEKDAYS_PT = [
-  'domingo', 'segunda-feira', 'terça-feira', 'quarta-feira',
-  'quinta-feira', 'sexta-feira', 'sábado',
-];
+const WEEKDAYS_PT = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
 
 function formatDateExtended(dateStr: string): string {
   const date = new Date(dateStr);
@@ -93,12 +87,7 @@ export function formatFlightMessage(flight: any, index: number): string {
   ].join('\n');
 }
 
-export function formatFlightsForDate(
-  date: string,
-  flights: any[],
-  origin: string,
-  destination: string,
-): string {
+export function formatFlightsForDate(date: string, flights: any[], origin: string, destination: string): string {
   if (!flights || flights.length === 0) {
     return `📅 *${formatDateExtended(date + 'T12:00:00Z')}*\n${origin} → ${destination}\n\nNenhum voo encontrado para esta data.`;
   }
@@ -107,9 +96,34 @@ export function formatFlightsForDate(
     return `📅 *${formatDateExtended(date + 'T12:00:00Z')}*\n${origin} → ${destination}\n\nErro ao buscar voos: ${(flights as any).error}`;
   }
 
-  const header = `📅 *${formatDateExtended(date + 'T12:00:00Z')}*\n✈️ ${origin} → ${destination}\n`;
+  const firstFlight = flights[0];
+  const depEpoch = String(new Date(firstFlight.departure.date).getTime());
+  const params = new URLSearchParams({
+    adults: '1',
+    cabin: firstFlight.cabin || 'ALL',
+    children: '0',
+    departureDate: depEpoch,
+    infants: '0',
+    isElegible: 'false',
+    isFlexibleDateChecked: 'false',
+    returnDate: '',
+    searchType: 'g3',
+    segments: '1',
+    tripType: '2',
+    originAirport: firstFlight.departure.airport,
+    originCity: '',
+    originCountry: '',
+    originAirportIsAny: 'false',
+    destinationAirport: firstFlight.arrival.airport,
+    destinCity: '',
+    destinCountry: '',
+    destinAirportIsAny: 'false',
+    'novo-resultado-voos': 'true',
+  });
+  const url = `Veja todos os voos em:\nhttps://www.smiles.com.br/mfe/emissao-passagem/?${params.toString()}`;
 
+  const header = `📅 *${formatDateExtended(date + 'T12:00:00Z')}*\n✈️ ${origin} → ${destination}\n`;
   const flightMessages = flights.map((flight, i) => formatFlightMessage(flight, i + 1)).join('\n\n');
 
-  return `${header}\n${flightMessages}`;
+  return `${header}\n${flightMessages}\n\n🔗 ${url}`;
 }
