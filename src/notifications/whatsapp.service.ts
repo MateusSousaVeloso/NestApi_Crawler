@@ -1,14 +1,22 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 
 @Injectable()
 export class WhatsAppService {
   private readonly logger = new Logger(WhatsAppService.name);
 
-  private readonly instanceId = '3EE3F6D305BFD125E81BC226D26E541A';
-  private readonly token = 'FE9635F8BEBF1060EA7363D7';
-  private readonly clientToken = 'F4f3ca36f9141487cbf3f6625bfafc8c6S';
-  private readonly baseUrl = `https://api.z-api.io/instances/${this.instanceId}/token/${this.token}`;
+  private readonly instanceId: string;
+  private readonly token: string;
+  private readonly clientToken: string;
+  private readonly baseUrl: string;
+
+  constructor(private readonly configService: ConfigService) {
+    this.instanceId = this.configService.getOrThrow<string>('ZAPI_INSTANCE_ID');
+    this.token = this.configService.getOrThrow<string>('ZAPI_TOKEN');
+    this.clientToken = this.configService.getOrThrow<string>('ZAPI_CLIENT_TOKEN');
+    this.baseUrl = `https://api.z-api.io/instances/${this.instanceId}/token/${this.token}`;
+  }
 
   async sendMessage(phone: string, message: string): Promise<void> {
     const url = `${this.baseUrl}/send-text`;

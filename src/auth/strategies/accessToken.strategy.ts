@@ -4,7 +4,6 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { JWT_CONSTANTS_TOKEN } from '../constants';
 import type { JwtConstants } from '../constants';
 import { UsersService } from '../../users/users.service';
-import { createHash } from 'crypto';
 
 type JwtPayload = {
   id: string;

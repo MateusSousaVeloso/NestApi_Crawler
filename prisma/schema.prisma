@@ -39,7 +39,7 @@ model UserSubscription {
   id           String           @id @default(dbgenerated("gen_random_uuid()"))
   payment_date DateTime         @default(now())
   end_date     DateTime
-  status       String           @default("active")
+  status       SubscriptionStatus @default(active)
   planId       Int
   userPhone    String           @unique @db.VarChar(20)
   plan         SubscriptionPlan @relation(fields: [planId], references: [id])
@@ -75,6 +75,11 @@ enum AlertFrequency {
   DAILY
   EVERY_6_HOURS
   EVERY_12_HOURS
+}
+
+enum SubscriptionStatus {
+  active
+  cancelled
 }
 
 model UserRoutePreference {

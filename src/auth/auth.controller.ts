@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, NotFoundException, Param, Patch, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AuthDto } from './auth.dto';
 import { AuthService } from './auth.service';
 import { AccessTokenGuard } from '../common/guards/accessToken.guard';
@@ -12,6 +13,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('signup')
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
   @ApiOperation({ summary: 'Registrar um novo usuário' })
   @ApiResponse({ status: 201, description: 'Usuário criado com sucesso.' })
   @ApiResponse({ status: 400, description: 'Dados inválidos.' })
@@ -22,7 +24,8 @@ export class AuthController {
   }
 
   @Post('login')
-  @HttpCode(HttpStatus.OK) // 200
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Autenticar usuário e obter tokens' })
   @ApiResponse({ status: 200, description: 'Login realizado com sucesso.' })
   @ApiResponse({ status: 401, description: 'Credenciais inválidas.' })
@@ -39,7 +42,9 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Não autorizado.' })
   async logout(@Res({ passthrough: true }) res, @Req() req) {
     await this.authService.logout(req.user['id']);
-    res.clearCookie(process.env.REFRESH_TOKEN).clearCookie(process.env.ACCESS_TOKEN).status(200);
+    res.clearCookie(process.env.REFRESH_TOKEN || 'refresh_token')
+      .clearCookie(process.env.ACCESS_TOKEN || 'access_token');
+    return { message: 'Logout realizado com sucesso.' };
   }
 
   @UseGuards(RefreshTokenGuard)
@@ -51,17 +56,17 @@ export class AuthController {
   async refreshTokens(@Res({ passthrough: true }) res, @Req() req) {
     const { accessToken, refreshToken } = await this.authService.refreshTokens(req['user'].id);
     res
-      .cookie(process.env.ACCESS_TOKEN, accessToken, {
+      .cookie(process.env.ACCESS_TOKEN || 'access_token', accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'Lax',
+        sameSite: 'lax',
         maxAge: 30 * 60 * 1000,
       })
-      .cookie(process.env.REFRESH_TOKEN, refreshToken, {
+      .cookie(process.env.REFRESH_TOKEN || 'refresh_token', refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'Lax',
-      })
-      .status(200);
+        sameSite: 'lax',
+      });
+    return { accessToken, refreshToken };
   }
 }

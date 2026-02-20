@@ -78,13 +78,20 @@ export class NotificationSchedulerService {
 
     this.logger.log(`Encontradas ${routes.length} rota(s) ativa(s) para frequência ${frequency}`);
 
-    for (const route of routes) {
-      try {
-        await this.processOneRoute(route);
-      } catch (error: any) {
-        this.logger.error(
-          `Erro ao processar rota ${route.id} (${route.originIata}->${route.destinationIata}): ${error.message}`,
-        );
+    const BATCH_SIZE = 15;
+    for (let i = 0; i < routes.length; i += BATCH_SIZE) {
+      const batch = routes.slice(i, i + BATCH_SIZE);
+      const results = await Promise.allSettled(
+        batch.map((route) => this.processOneRoute(route)),
+      );
+
+      for (const [index, result] of results.entries()) {
+        if (result.status === 'rejected') {
+          const route = batch[index];
+          this.logger.error(
+            `Erro ao processar rota ${route.id} (${route.originIata}->${route.destinationIata}): ${result.reason?.message || result.reason}`,
+          );
+        }
       }
     }
   }

@@ -1,15 +1,17 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { request } from 'cuimp';
-import { AzulSearchDto, CabinClass, SmilesSearchDto } from './search.dto';
+import { AzulSearchDto, SmilesSearchDto } from './search.dto';
 import { CrawlerService } from './crawler.service';
 import { FlightHistoryService } from '../flight-history/flight-history.service';
+import { ParsedFlight } from './search.interfaces';
 
 @Injectable()
 export class SearchService {
   private readonly logger = new Logger(SearchService.name);
-  private readonly crawlerService: CrawlerService;
-
-  constructor(private readonly flightHistoryService: FlightHistoryService) {}
+  constructor(
+    private readonly flightHistoryService: FlightHistoryService,
+    private readonly crawlerService: CrawlerService,
+  ) {}
 
   async searchSmiles(dto: SmilesSearchDto) {
     if (dto.finalDate) {
@@ -19,6 +21,10 @@ export class SearchService {
 
       if (diffDays < 0) {
         throw new HttpException({ message: 'finalDate deve ser igual ou posterior a departureDate' }, HttpStatus.BAD_REQUEST);
+      }
+
+      if (diffDays > 15) {
+        throw new HttpException({ message: 'Range máximo de 15 dias entre departureDate e finalDate' }, HttpStatus.BAD_REQUEST);
       }
 
       const dates: string[] = [];
@@ -37,7 +43,7 @@ export class SearchService {
         ),
       );
 
-      const grouped: Record<string, any> = {};
+      const grouped: Record<string, ParsedFlight[] | { error: string }> = {};
       dates.forEach((date, index) => {
         grouped[date] = results[index];
       });
@@ -50,7 +56,7 @@ export class SearchService {
     return flights;
   }
 
-  private async fetchSmilesFlights(dto: SmilesSearchDto, date: string) {
+  private async fetchSmilesFlights(dto: SmilesSearchDto, date: string): Promise<ParsedFlight[]> {
     const params = new URLSearchParams({
       cabin: 'ALL',
       originAirportCode: dto.origin,
@@ -88,79 +94,69 @@ export class SearchService {
         },
         insecureTLS: false,
       });
-      const segments = (response.data as any)?.requestedFlightSegmentList;
-      const rawFlightList = segments?.[0]?.flightList || [];
-      const allFlights = rawFlightList.map((flight: any) => {
-        const firstLeg = flight.legList?.[0];
-        const isDirect = flight.stops === 0;
 
-        return {
-          uid: flight.uid,
-          airline: flight.airline?.name,
-          cabin: flight.cabin,
-          availableSeats: flight.availableSeats,
-          stops: flight.stops,
-          departure: {
-            ...(isDirect && {
-              flightCode: firstLeg ? (firstLeg.operationAirline?.code || firstLeg.marketingAirline?.code) + firstLeg.flightNumber : null,
-            }),
-            date: flight.departure.date,
-            airport: flight.departure.airport.code,
-            name: flight.departure.airport.name,
-          },
-          arrival: {
-            date: flight.arrival.date,
-            airport: flight.arrival.airport.code,
-            name: flight.arrival.airport.name,
-          },
-          duration: flight.duration,
-          miles: flight.fareList?.[0]?.miles || 0,
-          ...(!isDirect && {
-            legs:
-              flight.legList?.map((leg: any) => ({
-                flightCode: (leg.operationAirline?.code || leg.marketingAirline?.code) + leg.flightNumber,
-                cabin: leg.cabin,
-                departure: {
-                  date: leg.departure.date,
-                  airport: leg.departure.airport.code,
-                },
-                arrival: {
-                  date: leg.arrival.date,
-                  airport: leg.arrival.airport.code,
-                },
-              })) || [],
-          }),
-        };
-      });
+      const allFlights = this.parseSmilesResponse(response.data);
 
       if (allFlights.length > 0) {
         this.flightHistoryService
           .saveSearchResults(dto.origin, dto.destination, date, 'Smiles', allFlights)
-          .catch(() => {});
+          .catch((err) => this.logger.error(`Erro ao salvar histórico Smiles: ${err.message}`));
       }
 
-      let flights = allFlights;
-      if (dto.cabin && dto.cabin !== 'ALL') {
-        flights = flights.filter((flight) => flight.cabin === dto.cabin);
-      }
-
-      if (dto.orderBy === 'preco') {
-        flights.sort((a: any, b: any) => a.miles - b.miles);
-      } else if (dto.orderBy === 'custo_beneficio') {
-        flights.sort((a: any, b: any) => {
-          const durationA = a.duration.hours * 60 + a.duration.minutes;
-          const durationB = b.duration.hours * 60 + b.duration.minutes;
-
-          const ratioA = durationA > 0 ? a.miles / durationA : Number.MAX_VALUE;
-          const ratioB = durationB > 0 ? b.miles / durationB : Number.MAX_VALUE;
-
-          return ratioA - ratioB;
-        });
-      }
-      return flights.slice(0, 3);
+      return this.filterAndSortFlights(allFlights, dto.cabin, dto.orderBy, 'miles');
     } catch (error: any) {
       this.handleCuimpError('Smiles', error);
     }
+  }
+
+  private parseSmilesResponse(data: any): ParsedFlight[] {
+    const segments = data?.requestedFlightSegmentList;
+    const rawFlightList = segments?.[0]?.flightList || [];
+
+    return rawFlightList.map((flight: any) => {
+      const firstLeg = flight.legList?.[0];
+      const isDirect = flight.stops === 0;
+
+      const parsed: ParsedFlight = {
+        uid: flight.uid,
+        airline: flight.airline?.name,
+        cabin: flight.cabin,
+        availableSeats: flight.availableSeats,
+        stops: flight.stops,
+        departure: {
+          ...(isDirect && {
+            flightCode: firstLeg ? (firstLeg.operationAirline?.code || firstLeg.marketingAirline?.code) + firstLeg.flightNumber : null,
+          }),
+          date: flight.departure.date,
+          airport: flight.departure.airport.code,
+          name: flight.departure.airport.name,
+        },
+        arrival: {
+          date: flight.arrival.date,
+          airport: flight.arrival.airport.code,
+          name: flight.arrival.airport.name,
+        },
+        duration: flight.duration,
+        miles: flight.fareList?.[0]?.miles || 0,
+      };
+
+      if (!isDirect) {
+        parsed.legs = flight.legList?.map((leg: any) => ({
+          flightCode: (leg.operationAirline?.code || leg.marketingAirline?.code) + leg.flightNumber,
+          cabin: leg.cabin,
+          departure: {
+            date: leg.departure.date,
+            airport: leg.departure.airport.code,
+          },
+          arrival: {
+            date: leg.arrival.date,
+            airport: leg.arrival.airport.code,
+          },
+        })) || [];
+      }
+
+      return parsed;
+    });
   }
 
   async searchAzul(dto: AzulSearchDto) {
@@ -217,40 +213,24 @@ export class SearchService {
       if (allFlights.length > 0) {
         this.flightHistoryService
           .saveSearchResults(dto.origin, dto.destination, dto.departureDate, 'Azul', allFlights)
-          .catch(() => {});
+          .catch((err) => this.logger.error(`Erro ao salvar histórico Azul: ${err.message}`));
       }
 
-      let filteredFlights = allFlights;
-      if (dto.cabin && dto.cabin !== 'ALL') {
-        const cabinMap: Record<string, string> = {
-          ECONOMIC: 'Economic',
-          BUSINESS: 'Business',
-          FIRST: 'First',
-        };
-        const targetCabin = cabinMap[dto.cabin] || dto.cabin;
-        filteredFlights = allFlights.filter((f) => f.cabin === targetCabin);
-      }
+      const cabinMap: Record<string, string> = {
+        ECONOMY: 'Economy',
+        BUSINESS: 'Business',
+        FIRST: 'First',
+      };
+      const targetCabin = dto.cabin && dto.cabin !== 'ALL' ? (cabinMap[dto.cabin] || dto.cabin) : undefined;
 
-      if (dto.orderBy === 'preco') {
-        filteredFlights.sort((a, b) => a.price - b.price);
-      } else if (dto.orderBy === 'custo_beneficio') {
-        filteredFlights.sort((a, b) => {
-          const durationA = a.duration.hours * 60 + a.duration.minutes;
-          const durationB = b.duration.hours * 60 + b.duration.minutes;
-          const ratioA = durationA > 0 ? a.price / durationA : Number.MAX_VALUE;
-          const ratioB = durationB > 0 ? b.price / durationB : Number.MAX_VALUE;
-          return ratioA - ratioB;
-        });
-      }
-
-      return filteredFlights.slice(0, 3);
+      return this.filterAndSortFlights(allFlights, targetCabin, dto.orderBy, 'price');
     } catch (error: any) {
-      this.handleCuimpError('azul', error);
+      this.handleCuimpError('Azul', error);
     }
   }
 
-  private parseAzulFlights(data: any): any[] {
-    const flights: any[] = [];
+  private parseAzulFlights(data: any): ParsedFlight[] {
+    const flights: ParsedFlight[] = [];
 
     for (const dayData of data || []) {
       const journeys = dayData.journeys || [];
@@ -267,7 +247,7 @@ export class SearchService {
 
         const cabin = availableFare.productClass?.category || 'Economic';
 
-        const flight: any = {
+        const flight: ParsedFlight = {
           uid: journey.journeyKey,
           airline: 'Azul',
           cabin,
@@ -318,6 +298,33 @@ export class SearchService {
     return flights;
   }
 
+  private filterAndSortFlights(
+    flights: ParsedFlight[],
+    cabin: string | undefined,
+    orderBy: string | undefined,
+    costField: 'miles' | 'price',
+  ): ParsedFlight[] {
+    let filtered = flights;
+
+    if (cabin) {
+      filtered = flights.filter((f) => f.cabin === cabin);
+    }
+
+    if (orderBy === 'preco') {
+      filtered.sort((a, b) => (a[costField] || 0) - (b[costField] || 0));
+    } else if (orderBy === 'custo_beneficio') {
+      filtered.sort((a, b) => {
+        const durationA = a.duration.hours * 60 + a.duration.minutes;
+        const durationB = b.duration.hours * 60 + b.duration.minutes;
+        const ratioA = durationA > 0 ? (a[costField] || 0) / durationA : Number.MAX_VALUE;
+        const ratioB = durationB > 0 ? (b[costField] || 0) / durationB : Number.MAX_VALUE;
+        return ratioA - ratioB;
+      });
+    }
+
+    return filtered.slice(0, 3);
+  }
+
   private getMinRemainingSeats(segments: any[]): number {
     let minSeats = Number.MAX_VALUE;
 
@@ -333,7 +340,7 @@ export class SearchService {
     return minSeats === Number.MAX_VALUE ? 0 : minSeats;
   }
 
-  private handleCuimpError(provider: string, error: any) {
+  private handleCuimpError(provider: string, error: any): never {
     this.logger.error(`Erro ${provider} (Cuimp): ${error.message}`);
 
     let status = HttpStatus.BAD_GATEWAY;

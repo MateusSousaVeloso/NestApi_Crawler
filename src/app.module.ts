@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { SearchModule } from './search/search.module';
@@ -14,6 +15,10 @@ import { FlightHistoryModule } from './flight-history/flight-history.module';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ThrottlerModule.forRoot([{
+      ttl: 60000,
+      limit: 10,
+    }]),
     UsersModule,
     AuthModule,
     SearchModule,

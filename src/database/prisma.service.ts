@@ -11,6 +11,9 @@ export class PrismaService extends PrismaClient {
 
     const pool = new Pool({
       connectionString: databaseUrl,
+      max: 20,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 5000,
     });
 
     const adapter = new PrismaPg(pool);
