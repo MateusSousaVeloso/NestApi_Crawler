@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import { ValidationPipe } from '@nestjs/common';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
@@ -9,9 +10,16 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.use(cookieParser());
-  app.enableCors({ origin: process.env.FRONTEND_URL, credentials: true });
+  app.use(helmet());
+
+  const frontendUrl = process.env.FRONTEND_URL;
+  if (!frontendUrl) {
+    throw new Error('FRONTEND_URL deve ser configurada nas variáveis de ambiente.');
+  }
+  app.enableCors({ origin: frontendUrl, credentials: true });
+
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
-  app.useGlobalFilters(new AllExceptionsFilter, new PrismaExceptionFilter());
+  app.useGlobalFilters(new AllExceptionsFilter(), new PrismaExceptionFilter());
 
   const config = new DocumentBuilder()
     .setTitle('CrawlerMilhas API')

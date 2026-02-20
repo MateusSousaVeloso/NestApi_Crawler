@@ -121,10 +121,11 @@ describe('UsersService', () => {
       expect(result).toEqual(authUser);
     });
 
-    it('should throw NotFoundException when user not found', async () => {
+    it('should return null when user not found', async () => {
       prisma.user.findUnique.mockResolvedValue(null);
 
-      await expect(service.findForAuth('unknown@gmail.com')).rejects.toThrow(NotFoundException);
+      const result = await service.findForAuth('unknown@gmail.com');
+      expect(result).toBeNull();
     });
   });
 

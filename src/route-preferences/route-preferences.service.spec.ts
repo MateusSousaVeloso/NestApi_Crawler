@@ -68,7 +68,7 @@ describe('RoutePreferencesService', () => {
       const result = await service.create(mockUserId, createDto);
 
       expect(prisma.userRoutePreference.create).toHaveBeenCalledWith({
-        data: { ...createDto, userId: mockUserId },
+        data: { ...createDto, dateStart: null, dateEnd: null, userId: mockUserId },
       });
       expect(result).toEqual(mockRoute);
     });

@@ -22,7 +22,8 @@ export interface AirportResult {
 
 @Injectable()
 export class AirportsService {
-  private airports: Airport[];
+  private readonly airports: Airport[];
+  private readonly airportsByIata: Map<string, Airport>;
 
   constructor() {
     const data = JSON.parse(
@@ -31,16 +32,20 @@ export class AirportsService {
     this.airports = (Object.values(data) as Airport[]).filter(
       (a) => a.iata !== '',
     );
+
+    this.airportsByIata = new Map();
+    for (const airport of this.airports) {
+      this.airportsByIata.set(airport.iata.toUpperCase(), airport);
+    }
   }
 
   search(query: string): AirportResult[] {
     const term = query.toLowerCase();
+    const termUpper = query.toUpperCase();
 
-    const exactIata = this.airports.filter(
-      (a) => a.iata.toLowerCase() === term,
-    );
-    if (exactIata.length > 0) {
-      return exactIata.map((a) => ({ iata: a.iata, name: a.name }));
+    const exactMatch = this.airportsByIata.get(termUpper);
+    if (exactMatch) {
+      return [{ iata: exactMatch.iata, name: exactMatch.name }];
     }
 
     return this.airports

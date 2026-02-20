@@ -61,8 +61,7 @@ export class FlightHistoryService {
     return '';
   }
 
-  private buildMinJson(f: any, origin: string, destination: string): object | undefined {
-    if (!f) return undefined;
+  private buildFlightBase(f: any, origin: string, destination: string) {
     const depDateStr = f.departure?.date || null;
     const arrDateStr = f.arrival?.date || null;
     const depTime = this.extractTime(depDateStr);
@@ -70,12 +69,15 @@ export class FlightHistoryService {
     const arrTime = this.extractTime(arrDateStr) + dayOffset;
     const route = this.buildRoute(f, origin, destination);
     const isDirect = f.stops === 0;
+
     let flightCode = f.departure?.flightCode || null;
     if (!isDirect && f.legs) {
       flightCode = f.legs.map((leg: any) => leg.flightCode).filter(Boolean).join(', ');
     }
+
     const cabinLetter = (f.cabin || 'Y').charAt(0).toUpperCase();
     const cabinClass = f.availableSeats != null ? `${cabinLetter}${f.availableSeats}` : null;
+
     return {
       flightCode,
       airline: f.airline || null,
@@ -87,56 +89,34 @@ export class FlightHistoryService {
       departureAirport: f.departure?.airport || origin,
       arrivalTime: arrTime,
       arrivalAirport: f.arrival?.airport || destination,
-      departureDate: depDateStr || null,
-      arrivalDate: arrDateStr || null,
       durationHours: f.duration?.hours || 0,
       durationMinutes: f.duration?.minutes || 0,
       miles: f.miles || 0,
       price: f.price ? Number(f.price) : null,
       currency: f.currency || null,
       route,
+      depDateStr,
+      arrDateStr,
+    };
+  }
+
+  private buildMinJson(f: any, origin: string, destination: string): object | undefined {
+    if (!f) return undefined;
+    const { depDateStr, arrDateStr, ...base } = this.buildFlightBase(f, origin, destination);
+    return {
+      ...base,
+      departureDate: depDateStr || null,
+      arrivalDate: arrDateStr || null,
     };
   }
 
   private buildDetailData(f: any, origin: string, destination: string) {
-    const isDirect = f.stops === 0;
-    const depDateStr = f.departure?.date || null;
-    const arrDateStr = f.arrival?.date || null;
-    const depTime = this.extractTime(depDateStr);
-    const dayOffset = this.getDayOffset(depDateStr, arrDateStr);
-    const arrTime = this.extractTime(arrDateStr) + dayOffset;
-    const route = this.buildRoute(f, origin, destination);
-
-    let flightCode = f.departure?.flightCode || null;
-    if (!isDirect && f.legs) {
-      flightCode = f.legs.map((leg: any) => leg.flightCode).filter(Boolean).join(', ');
-    }
-
-    const cabinLetter = (f.cabin || 'Y').charAt(0).toUpperCase();
-    const cabinClass = f.availableSeats != null ? `${cabinLetter}${f.availableSeats}` : null;
-    const departureDate = depDateStr ? new Date(depDateStr) : null;
-    const arrivalDate = arrDateStr ? new Date(arrDateStr) : null;
-
+    const { depDateStr, arrDateStr, ...base } = this.buildFlightBase(f, origin, destination);
     return {
       uid: f.uid || null,
-      flightCode,
-      airline: f.airline || null,
-      cabin: f.cabin || 'ECONOMIC',
-      cabinClass,
-      availableSeats: f.availableSeats || 0,
-      stops: f.stops || 0,
-      departureTime: depTime,
-      departureAirport: f.departure?.airport || origin,
-      arrivalTime: arrTime,
-      arrivalAirport: f.arrival?.airport || destination,
-      departureDate,
-      arrivalDate,
-      durationHours: f.duration?.hours || 0,
-      durationMinutes: f.duration?.minutes || 0,
-      miles: f.miles || 0,
-      price: f.price ? f.price : null,
-      currency: f.currency || null,
-      route,
+      ...base,
+      departureDate: depDateStr ? new Date(depDateStr) : null,
+      arrivalDate: arrDateStr ? new Date(arrDateStr) : null,
       legsJson: f.legs || null,
     };
   }

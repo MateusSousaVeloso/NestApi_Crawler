@@ -80,7 +80,6 @@ describe('AuthController', () => {
     it('should logout and clear cookies', async () => {
       const mockRes = {
         clearCookie: jest.fn().mockReturnThis(),
-        status: jest.fn().mockReturnThis(),
       };
       const mockReq = { user: { id: mockUserId } };
       authService.logout.mockResolvedValue(true);
@@ -89,12 +88,12 @@ describe('AuthController', () => {
       process.env.REFRESH_TOKEN = 'refresh_token';
       process.env.ACCESS_TOKEN = 'access_token';
 
-      await controller.logout(mockRes, mockReq);
+      const result = await controller.logout(mockRes, mockReq);
 
       expect(authService.logout).toHaveBeenCalledWith(mockUserId);
       expect(mockRes.clearCookie).toHaveBeenCalledWith('refresh_token');
       expect(mockRes.clearCookie).toHaveBeenCalledWith('access_token');
-      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(result).toEqual({ message: 'Logout realizado com sucesso.' });
 
       process.env = originalEnv;
     });
@@ -104,7 +103,6 @@ describe('AuthController', () => {
     it('should refresh tokens and set cookies', async () => {
       const mockRes = {
         cookie: jest.fn().mockReturnThis(),
-        status: jest.fn().mockReturnThis(),
       };
       const mockReq = { user: { id: mockUserId } };
       authService.refreshTokens.mockResolvedValue(mockTokens);
@@ -114,7 +112,7 @@ describe('AuthController', () => {
       process.env.REFRESH_TOKEN = 'refresh_token';
       process.env.NODE_ENV = 'development';
 
-      await controller.refreshTokens(mockRes, mockReq);
+      const result = await controller.refreshTokens(mockRes, mockReq);
 
       expect(authService.refreshTokens).toHaveBeenCalledWith(mockUserId);
       expect(mockRes.cookie).toHaveBeenCalledWith(
@@ -122,7 +120,7 @@ describe('AuthController', () => {
         'mock-access-token',
         expect.objectContaining({
           httpOnly: true,
-          sameSite: 'Lax',
+          sameSite: 'lax',
           maxAge: 30 * 60 * 1000,
         }),
       );
@@ -131,10 +129,10 @@ describe('AuthController', () => {
         'mock-refresh-token',
         expect.objectContaining({
           httpOnly: true,
-          sameSite: 'Lax',
+          sameSite: 'lax',
         }),
       );
-      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(result).toEqual({ accessToken: 'mock-access-token', refreshToken: 'mock-refresh-token' });
 
       process.env = originalEnv;
     });

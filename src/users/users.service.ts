@@ -31,9 +31,7 @@ export class UsersService {
   }
 
   async findForAuth(email: string) {
-    const user = await this.prisma.user.findUnique({ where: { email }, select: { id: true, email: true, password: true } });
-    if (!user) throw new NotFoundException('Usuário não existe.');
-    return user;
+    return this.prisma.user.findUnique({ where: { email }, select: { id: true, email: true, password: true } });
   }
 
   async findByIdWithToken(id: string) {

@@ -140,7 +140,7 @@ describe('AuthService', () => {
       expect(jwtService.signAsync).toHaveBeenCalledTimes(2);
       expect(jwtService.signAsync).toHaveBeenCalledWith(
         { id: mockUserId, email: mockEmail },
-        { secret: 'test-refresh-secret' },
+        { secret: 'test-refresh-secret', expiresIn: '7d' },
       );
       expect(jwtService.signAsync).toHaveBeenCalledWith(
         { id: mockUserId, email: mockEmail, refreshToken: 'mock-refresh-token' },
