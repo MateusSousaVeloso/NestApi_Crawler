@@ -12,7 +12,7 @@ export class AuthDto {
   email: string;
 
   @ApiProperty({
-    example: 'Mateus@2409',
+    example: 'Mateus-2409',
     description: 'Senha de acesso (mínimo 8 caracteres, 1 maiúscula, 1 minúscula, 1 caractere especial)',
   })
   @IsNotEmpty({ message: 'Senha não pode ser vazia.' })

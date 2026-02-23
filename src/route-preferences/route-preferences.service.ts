@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { CreateRoutePreferenceDto, UpdateRoutePreferenceDto } from './route-preferences.dto';
 
@@ -8,6 +8,19 @@ export class RoutePreferencesService {
 
   async create(userId: string, dto: CreateRoutePreferenceDto) {
     const { dateStart, dateEnd, ...rest } = dto;
+    if (dateEnd) {
+      const start = new Date(dateStart + 'T00:00:00');
+      const end = new Date(dateEnd + 'T00:00:00');
+      const diffDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (diffDays < 0) {
+        throw new HttpException({ message: 'Data final deve ser posterior a data inicial' }, HttpStatus.BAD_REQUEST);
+      }
+
+      if (diffDays > 15) {
+        throw new HttpException({ message: 'O limite é 15 dias por pesquisa' }, HttpStatus.BAD_REQUEST);
+      }
+    }
     return this.prisma.userRoutePreference.create({
       data: {
         ...rest,
@@ -36,6 +49,19 @@ export class RoutePreferencesService {
   async update(userId: string, id: string, dto: UpdateRoutePreferenceDto) {
     await this.findOne(userId, id);
     const { dateStart, dateEnd, ...rest } = dto;
+    if (dateEnd) {
+      const start = new Date(dateStart + 'T00:00:00');
+      const end = new Date(dateEnd + 'T00:00:00');
+      const diffDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (diffDays < 0) {
+        throw new HttpException({ message: 'Data final deve ser posterior a data inicial' }, HttpStatus.BAD_REQUEST);
+      }
+
+      if (diffDays > 15) {
+        throw new HttpException({ message: 'O limite é 15 dias por pesquisa' }, HttpStatus.BAD_REQUEST);
+      }
+    }
     return this.prisma.userRoutePreference.update({
       where: { id },
       data: {

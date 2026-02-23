@@ -17,7 +17,7 @@ export class CreateUserDto {
   @IsNotEmpty()
   email: string;
 
-  @ApiProperty({ example: 'Mateus@2409', description: 'Senha de acesso (mínimo 8 caracteres, 1 maiúscula, 1 minúscula, 1 caractere especial)' })
+  @ApiProperty({ example: 'Mateus-2409', description: 'Senha de acesso (mínimo 8 caracteres, 1 maiúscula, 1 minúscula, 1 caractere especial)' })
   @IsString()
   @IsNotEmpty()
   @MinLength(8, { message: 'Senha deve ter no mínimo 8 caracteres.' })
