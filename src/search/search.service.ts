@@ -53,7 +53,7 @@ export class SearchService {
     }
     const flights = await this.fetchSmilesFlights(dto, dto.departureDate);
     this.logger.log(`Voos da smile encontrados com sucesso!`);
-    return flights;
+    return { [dto.departureDate]: flights };
   }
 
   private async fetchSmilesFlights(dto: SmilesSearchDto, date: string): Promise<ParsedFlight[]> {
@@ -65,7 +65,7 @@ export class SearchService {
       adults: dto.adults.toString(),
       children: dto.children.toString(),
       infants: dto.infants.toString(),
-      forceCongener: 'false',
+      forceCongener: 'true',
       memberNumber: dto.memberNumber || '',
     });
 
@@ -141,18 +141,19 @@ export class SearchService {
       };
 
       if (!isDirect) {
-        parsed.legs = flight.legList?.map((leg: any) => ({
-          flightCode: (leg.operationAirline?.code || leg.marketingAirline?.code) + leg.flightNumber,
-          cabin: leg.cabin,
-          departure: {
-            date: leg.departure.date,
-            airport: leg.departure.airport.code,
-          },
-          arrival: {
-            date: leg.arrival.date,
-            airport: leg.arrival.airport.code,
-          },
-        })) || [];
+        parsed.legs =
+          flight.legList?.map((leg: any) => ({
+            flightCode: (leg.operationAirline?.code || leg.marketingAirline?.code) + leg.flightNumber,
+            cabin: leg.cabin,
+            departure: {
+              date: leg.departure.date,
+              airport: leg.departure.airport.code,
+            },
+            arrival: {
+              date: leg.arrival.date,
+              airport: leg.arrival.airport.code,
+            },
+          })) || [];
       }
 
       return parsed;
@@ -221,7 +222,7 @@ export class SearchService {
         BUSINESS: 'Business',
         FIRST: 'First',
       };
-      const targetCabin = dto.cabin && dto.cabin !== 'ALL' ? (cabinMap[dto.cabin] || dto.cabin) : undefined;
+      const targetCabin = dto.cabin && dto.cabin !== 'ALL' ? cabinMap[dto.cabin] || dto.cabin : undefined;
 
       return this.filterAndSortFlights(allFlights, targetCabin, dto.orderBy, 'price');
     } catch (error: any) {

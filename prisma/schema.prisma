@@ -36,14 +36,14 @@ model SubscriptionPlan {
 }
 
 model UserSubscription {
-  id           String           @id @default(dbgenerated("gen_random_uuid()"))
-  payment_date DateTime         @default(now())
+  id           String             @id @default(dbgenerated("gen_random_uuid()"))
+  payment_date DateTime           @default(now())
   end_date     DateTime
-  status       SubscriptionStatus @default(active)
   planId       Int
-  userPhone    String           @unique @db.VarChar(20)
-  plan         SubscriptionPlan @relation(fields: [planId], references: [id])
-  user         User             @relation(fields: [userPhone], references: [phone_number], onDelete: Cascade)
+  userPhone    String             @unique @db.VarChar(20)
+  status       SubscriptionStatus @default(active)
+  plan         SubscriptionPlan   @relation(fields: [planId], references: [id])
+  user         User               @relation(fields: [userPhone], references: [phone_number], onDelete: Cascade)
 
   @@map("user_subscriptions")
 }
@@ -57,29 +57,6 @@ model History {
 
   @@index([session_id])
   @@map("histories")
-}
-
-enum TipoBusca {
-  preco
-  custo_beneficio
-}
-
-enum CabinType {
-  ANY
-  ECONOMIC
-  BUSINESS
-  FIRST
-}
-
-enum AlertFrequency {
-  DAILY
-  EVERY_6_HOURS
-  EVERY_12_HOURS
-}
-
-enum SubscriptionStatus {
-  active
-  cancelled
 }
 
 model UserRoutePreference {
@@ -119,21 +96,21 @@ model TripInfo {
 }
 
 model FlightSearchResult {
-  id                String   @id @default(dbgenerated("gen_random_uuid()"))
-  flightDate        DateTime @db.Date
-  searchedAt        DateTime @default(now())
-  origin            String   @db.VarChar(10)
-  destination       String   @db.VarChar(10)
-  provider          String   @db.VarChar(30)
-  economyMinMiles   Int?
-  premiumMinMiles   Int?
-  businessMinMiles  Int?
-  firstMinMiles     Int?
-  economyMinJson    Json?
-  premiumMinJson    Json?
-  businessMinJson   Json?
-  firstMinJson      Json?
-  details           FlightSearchDetail[]
+  id               String               @id @default(dbgenerated("gen_random_uuid()"))
+  flightDate       DateTime             @db.Date
+  searchedAt       DateTime             @default(now())
+  origin           String               @db.VarChar(10)
+  destination      String               @db.VarChar(10)
+  provider         String               @db.VarChar(30)
+  economyMinMiles  Int?
+  premiumMinMiles  Int?
+  businessMinMiles Int?
+  firstMinMiles    Int?
+  businessMinJson  Json?
+  economyMinJson   Json?
+  firstMinJson     Json?
+  premiumMinJson   Json?
+  details          FlightSearchDetail[]
 
   @@unique([origin, destination, flightDate, provider])
   @@index([origin, destination])
@@ -171,4 +148,27 @@ model FlightSearchDetail {
   @@index([airline])
   @@index([cabin])
   @@map("flight_search_details")
+}
+
+enum TipoBusca {
+  preco
+  custo_beneficio
+}
+
+enum CabinType {
+  ANY
+  ECONOMIC
+  BUSINESS
+  FIRST
+}
+
+enum AlertFrequency {
+  DAILY
+  EVERY_6_HOURS
+  EVERY_12_HOURS
+}
+
+enum SubscriptionStatus {
+  active
+  cancelled
 }

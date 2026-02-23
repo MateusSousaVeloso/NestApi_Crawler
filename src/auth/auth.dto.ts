@@ -17,9 +17,5 @@ export class AuthDto {
   })
   @IsNotEmpty({ message: 'Senha não pode ser vazia.' })
   @IsString({ message: 'Senha deve ser um texto.' })
-  @MinLength(8, { message: 'Senha deve ter no mínimo 8 caracteres.' })
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/, {
-    message: 'Senha deve conter pelo menos 1 letra maiúscula, 1 minúscula e 1 caractere especial.',
-  })
   password: string;
 }
