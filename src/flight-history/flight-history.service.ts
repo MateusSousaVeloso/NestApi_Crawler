@@ -8,14 +8,6 @@ export class FlightHistoryService {
 
   constructor(private prisma: PrismaService) {}
 
-  private classifyCabin(cabin: string): 'economic' | 'premium' | 'business' | 'first' {
-    const c = (cabin || '').toUpperCase();
-    if (c.includes('FIRST') || c === 'F') return 'first';
-    if (c.includes('BUSINESS') || c.includes('EXECUTIVA') || c === 'J' || c === 'C') return 'business';
-    if (c.includes('PREMIUM') || c === 'W') return 'premium';
-    return 'economic';
-  }
-
   private buildRoute(f: any, origin: string, destination: string): string {
     if (!f.legs || f.legs.length === 0) {
       return `${f.departure?.airport || origin}/${f.arrival?.airport || destination}`;
@@ -143,12 +135,11 @@ export class FlightHistoryService {
       const cost = f.miles || f.price || 0;
       if (cost <= 0) continue;
 
-      const cls = this.classifyCabin(f.cabin);
-      if (cls === 'first') {
+      if (f.cabin === 'FIRST') {
         if (firstMin === null || cost < firstMin) { firstMin = cost; firstMinFlight = f; }
-      } else if (cls === 'business') {
+      } else if (f.cabin === 'BUSINESS') {
         if (businessMin === null || cost < businessMin) { businessMin = cost; businessMinFlight = f; }
-      } else if (cls === 'premium') {
+      } else if (f.cabin === 'PREMIUM') {
         if (premiumMin === null || cost < premiumMin) { premiumMin = cost; premiumMinFlight = f; }
       } else {
         if (economyMin === null || cost < economyMin) { economyMin = cost; economyMinFlight = f; }

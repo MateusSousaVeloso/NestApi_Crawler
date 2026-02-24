@@ -50,7 +50,7 @@ export class CreateRoutePreferenceDto {
   dateStart?: string;
 
   @ApiPropertyOptional({
-    example: '2025-06-30',
+    example: '2025-06-16',
     description: 'Data de fim do período de busca (formato ISO 8601)',
   })
   @IsDateString()

@@ -27,22 +27,26 @@ export class SubscriptionsService {
     const endDate = new Date(paymentDate);
     endDate.setDate(endDate.getDate() + plan.durationDays);
 
-    const subscription = await this.prisma.userSubscription.create({
-      data: {
-        userPhone: user.phone_number,
-        planId: plan.id,
-        payment_date: paymentDate,
-        end_date: endDate,
-        status: SubscriptionStatus.active,
-      },
-      include: {
-        plan: {
-          select: { name: true, price: true, durationDays: true },
-        },
-      },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      await tx.userSubscription.deleteMany({
+        where: { userPhone: user.phone_number },
+      });
 
-    return subscription;
+      return tx.userSubscription.create({
+        data: {
+          userPhone: user.phone_number,
+          planId: plan.id,
+          payment_date: paymentDate,
+          end_date: endDate,
+          status: SubscriptionStatus.active,
+        },
+        include: {
+          plan: {
+            select: { name: true, price: true, durationDays: true },
+          },
+        },
+      });
+    });
   }
 
   async getMySubscription(userId: string) {

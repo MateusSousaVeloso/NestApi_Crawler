@@ -26,12 +26,8 @@ export class AirportsService {
   private readonly airportsByIata: Map<string, Airport>;
 
   constructor() {
-    const data = JSON.parse(
-      readFileSync(join(__dirname, '..', 'data', 'airports.json'), 'utf-8'),
-    );
-    this.airports = (Object.values(data) as Airport[]).filter(
-      (a) => a.iata !== '',
-    );
+    const data = JSON.parse(readFileSync(join(__dirname, '..', 'data', 'airports.json'), 'utf-8'));
+    this.airports = (Object.values(data) as Airport[]).filter((a) => a.iata !== '');
 
     this.airportsByIata = new Map();
     for (const airport of this.airports) {
@@ -49,18 +45,13 @@ export class AirportsService {
     }
 
     return this.airports
-      .filter(
-        (a) =>
-          a.name.toLowerCase().includes(term) ||
-          a.city.toLowerCase().includes(term),
-      )
+      .filter((a) => a.name.toLowerCase().includes(term) || a.city.toLowerCase().includes(term))
+      .slice(0, 10)
       .map((a) => ({ iata: a.iata, name: a.name }));
   }
 
   searchByState(state: string): AirportResult[] {
     const term = state.toLowerCase();
-    return this.airports
-      .filter((a) => a.state.toLowerCase().includes(term))
-      .map((a) => ({ iata: a.iata, name: a.name }));
+    return this.airports.filter((a) => a.state.toLowerCase().includes(term)).map((a) => ({ iata: a.iata, name: a.name }));
   }
 }

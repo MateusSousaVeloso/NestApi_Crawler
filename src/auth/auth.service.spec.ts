@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { JWT_CONSTANTS_TOKEN } from './constants';
+import { hashToken } from '../common/hashToken';
 
 jest.mock('bcrypt', () => ({
   __esModule: true,
@@ -74,9 +75,7 @@ describe('AuthService', () => {
 
     it('should create a user and return tokens', async () => {
       usersService.create.mockResolvedValue({ id: mockUserId, email: mockEmail });
-      mockJwtService.signAsync
-        .mockResolvedValueOnce('mock-refresh-token')
-        .mockResolvedValueOnce('mock-access-token');
+      mockJwtService.signAsync.mockResolvedValueOnce('mock-refresh-token').mockResolvedValueOnce('mock-access-token');
       usersService.updateToken.mockResolvedValue(undefined);
 
       const result = await service.signup(createDto);
@@ -97,9 +96,7 @@ describe('AuthService', () => {
         password: 'hashed-password',
       });
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
-      mockJwtService.signAsync
-        .mockResolvedValueOnce('mock-refresh-token')
-        .mockResolvedValueOnce('mock-access-token');
+      mockJwtService.signAsync.mockResolvedValueOnce('mock-refresh-token').mockResolvedValueOnce('mock-access-token');
       usersService.updateToken.mockResolvedValue(undefined);
 
       const result = await service.login(loginDto);
@@ -131,9 +128,7 @@ describe('AuthService', () => {
 
   describe('getTokens', () => {
     it('should generate access and refresh tokens', async () => {
-      mockJwtService.signAsync
-        .mockResolvedValueOnce('mock-refresh-token')
-        .mockResolvedValueOnce('mock-access-token');
+      mockJwtService.signAsync.mockResolvedValueOnce('mock-refresh-token').mockResolvedValueOnce('mock-access-token');
 
       const result = await service.getTokens(mockUserId, mockEmail);
 
@@ -142,8 +137,11 @@ describe('AuthService', () => {
         { id: mockUserId, email: mockEmail },
         { secret: 'test-refresh-secret', expiresIn: '7d' },
       );
+
+      const expectedHashedToken = hashToken('mock-refresh-token');
+
       expect(jwtService.signAsync).toHaveBeenCalledWith(
-        { id: mockUserId, email: mockEmail, refreshToken: 'mock-refresh-token' },
+        { id: mockUserId, email: mockEmail, hashedToken: expectedHashedToken },
         { secret: 'test-access-secret', expiresIn: '30m' },
       );
       expect(result).toEqual(mockTokens);
@@ -153,9 +151,7 @@ describe('AuthService', () => {
   describe('refreshTokens', () => {
     it('should return new tokens for valid user', async () => {
       usersService.findById.mockResolvedValue({ id: mockUserId, email: mockEmail });
-      mockJwtService.signAsync
-        .mockResolvedValueOnce('mock-refresh-token')
-        .mockResolvedValueOnce('mock-access-token');
+      mockJwtService.signAsync.mockResolvedValueOnce('mock-refresh-token').mockResolvedValueOnce('mock-access-token');
       usersService.updateToken.mockResolvedValue(undefined);
 
       const result = await service.refreshTokens(mockUserId);

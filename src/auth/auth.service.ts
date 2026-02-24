@@ -6,6 +6,8 @@ import { AuthDto } from './auth.dto';
 import { CreateUserDto } from '../users/users.dto';
 import { JWT_CONSTANTS_TOKEN } from './constants';
 import type { JwtConstants } from './constants';
+import { hashToken } from '../common/hashToken';
+
 
 @Injectable()
 export class AuthService {
@@ -44,8 +46,10 @@ export class AuthService {
       { secret: this.constants.refresh_token_secret, expiresIn: '7d' },
     );
 
+    const hashedToken = hashToken(refreshToken);
+
     const accessToken = await this.jwtService.signAsync(
-      { id, email, refreshToken },
+      { id, email, hashedToken },
       { secret: this.constants.access_token_secret, expiresIn: '30m' },
     );
 

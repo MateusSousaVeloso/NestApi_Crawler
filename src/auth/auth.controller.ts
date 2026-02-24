@@ -42,13 +42,13 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Não autorizado.' })
   async logout(@Res({ passthrough: true }) res, @Req() req) {
     await this.authService.logout(req.user['id']);
-    res.clearCookie(process.env.REFRESH_TOKEN || 'refresh_token')
-      .clearCookie(process.env.ACCESS_TOKEN || 'access_token');
+    res.clearCookie(process.env.REFRESH_TOKEN || 'refresh_token').clearCookie(process.env.ACCESS_TOKEN || 'access_token');
     return { message: 'Logout realizado com sucesso.' };
   }
 
   @UseGuards(RefreshTokenGuard)
-  @Get('refresh')
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Renovar Access Token usando Refresh Token' })
   @ApiResponse({ status: 200, description: 'Tokens renovados com sucesso.' })

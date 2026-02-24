@@ -8,7 +8,7 @@ import { UsersService } from '../../users/users.service';
 type JwtPayload = {
   id: string;
   email: string;
-  refreshToken: string;
+  hashedToken: string;
 };
 
 @Injectable()
@@ -30,10 +30,12 @@ export class AccessTokenStrategy extends PassportStrategy(Strategy, 'jwt') {
       throw new UnauthorizedException('Sessão expirada. Faça login novamente.');
     }
 
-    if (payload.refreshToken !== user.token) {
-      throw new UnauthorizedException('Sessão invalidada. Foi feito login em outro dispositivo.');
+    const isTokenValid = payload.hashedToken === user.token;
+    if (!isTokenValid) {
+      await this.usersService.updateToken(payload.id, null);
+      throw new UnauthorizedException('Token inválido. Sessão revogada por segurança.');
     }
 
-    return payload;
+    return { id: payload.id, email: payload.email };
   }
 }

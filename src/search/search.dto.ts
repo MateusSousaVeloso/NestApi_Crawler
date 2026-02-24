@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsObject, IsUUID, IsOptional, IsInt, Min, IsDateString, IsEnum } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsInt, Min, IsDateString, IsEnum } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
@@ -69,20 +69,4 @@ export class SmilesSearchDto extends FlightSearchDto {
   @IsString()
   @IsOptional()
   memberNumber?: string;
-}
-
-export class AzulSearchDto extends FlightSearchDto {
-  @ApiPropertyOptional({ example: 3, description: 'Dias de flexibilidade para a esquerda', default: 3 })
-  @IsInt()
-  @Min(0)
-  @Type(() => Number)
-  @IsOptional()
-  flexDaysLeft?: number = 3;
-
-  @ApiPropertyOptional({ example: 3, description: 'Dias de flexibilidade para a direita', default: 3 })
-  @IsInt()
-  @Min(0)
-  @Type(() => Number)
-  @IsOptional()
-  flexDaysRight?: number = 3;
 }

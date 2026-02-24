@@ -22,7 +22,7 @@ export class FlightHistoryFilterDto {
   @IsOptional()
   dateTo?: string;
 
-  @ApiPropertyOptional({ example: 'Smiles', description: 'Filtrar por provedor (Smiles, Azul)' })
+  @ApiPropertyOptional({ example: 'Smiles', description: 'Filtrar por provedor (Smiles)' })
   @IsString()
   @IsOptional()
   provider?: string;

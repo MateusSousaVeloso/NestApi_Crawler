@@ -16,7 +16,7 @@ const mockUser = {
 const mockPlan = {
   id: 1,
   name: 'Premium Mensal',
-  price: 29.90,
+  price: 29.9,
   durationDays: 30,
 };
 
@@ -27,7 +27,7 @@ const mockSubscription = {
   status: 'active',
   userPhone: mockPhoneNumber,
   planId: 1,
-  plan: { name: 'Premium Mensal', price: 29.90, durationDays: 30 },
+  plan: { name: 'Premium Mensal', price: 29.9, durationDays: 30 },
 };
 
 const mockPrisma = {
@@ -43,6 +43,9 @@ const mockPrisma = {
     update: jest.fn(),
     deleteMany: jest.fn(),
   },
+  $transaction: jest.fn().mockImplementation(async (callback) => {
+    return callback(mockPrisma);
+  }),
 };
 
 describe('SubscriptionsService', () => {
@@ -51,10 +54,7 @@ describe('SubscriptionsService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        SubscriptionsService,
-        { provide: PrismaService, useValue: mockPrisma },
-      ],
+      providers: [SubscriptionsService, { provide: PrismaService, useValue: mockPrisma }],
     }).compile();
 
     service = module.get<SubscriptionsService>(SubscriptionsService);
@@ -79,6 +79,9 @@ describe('SubscriptionsService', () => {
       expect(prisma.user.findUnique).toHaveBeenCalledWith({ where: { id: mockUserId } });
       expect(prisma.userSubscription.deleteMany).toHaveBeenCalledWith({
         where: { userPhone: mockPhoneNumber, status: 'active' },
+      });
+      expect(prisma.userSubscription.deleteMany).toHaveBeenCalledWith({
+        where: { userPhone: mockPhoneNumber },
       });
       expect(prisma.userSubscription.create).toHaveBeenCalledWith({
         data: expect.objectContaining({

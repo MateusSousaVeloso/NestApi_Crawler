@@ -3,6 +3,7 @@ import { NotFoundException } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { PrismaService } from '../database/prisma.service';
 import * as bcrypt from 'bcrypt';
+import { hashToken } from '../common/hashToken';
 
 jest.mock('bcrypt', () => ({
   hash: jest.fn(),
@@ -157,9 +158,10 @@ describe('UsersService', () => {
 
       await service.updateToken(mockUserId, 'new-token');
 
+      const hashedToken = hashToken('new-token');
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: mockUserId },
-        data: { token: 'new-token' },
+        data: { token: hashedToken },
       });
     });
 

@@ -59,7 +59,7 @@ export function formatFlightMessage(flight: any, index: number): string {
       `   - *Chegada:* ${arrivalDate}, ${arrivalTime} (${flight.arrival.airport})`,
       `   - *Duração:* ${durationHours} horas e ${durationMinutes} minutos`,
       `   - *Escalas:* Direto`,
-      `   - *Assentos Disponiveis*: ${flight.availableSeats}`,
+      `   - *Assentos Disponíveis*: ${flight.availableSeats}`,
       `   - *Milhas:* ${miles}`,
     ].join('\n');
   }
@@ -82,7 +82,7 @@ export function formatFlightMessage(flight: any, index: number): string {
     `   - *Escalas:* ${flight.stops}`,
     `   - *Trechos:*`,
     legs,
-    `   - *Assentos Disponiveis*: ${flight.availableSeats}`,
+    `   - *Assentos Disponíveis*: ${flight.availableSeats}`,
     `   - *Milhas:* ${miles}`,
   ].join('\n');
 }
