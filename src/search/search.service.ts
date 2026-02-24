@@ -1,16 +1,15 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { request } from 'cuimp';
-import { AzulSearchDto, SmilesSearchDto } from './search.dto';
-import { CrawlerService } from './crawler.service';
+import { SmilesSearchDto } from './search.dto';
 import { FlightHistoryService } from '../flight-history/flight-history.service';
 import { ParsedFlight } from './search.interfaces';
+import { CabinType } from 'prisma/generated/client';
 
 @Injectable()
 export class SearchService {
   private readonly logger = new Logger(SearchService.name);
   constructor(
     private readonly flightHistoryService: FlightHistoryService,
-    private readonly crawlerService: CrawlerService,
   ) {}
 
   async searchSmiles(dto: SmilesSearchDto) {
@@ -94,7 +93,6 @@ export class SearchService {
         },
         insecureTLS: false,
       });
-
       const allFlights = this.parseSmilesResponse(response.data);
 
       if (allFlights.length > 0) {
@@ -160,145 +158,6 @@ export class SearchService {
     });
   }
 
-  async searchAzul(dto: AzulSearchDto) {
-    this.logger.log(`Azul search (via Cuimp): ${dto.origin} -> ${dto.destination} on ${dto.departureDate}`);
-
-    const credentials = await this.crawlerService.getAzulCredentials();
-    const [year, month, day] = dto.departureDate.split('-');
-    const formattedDate = `${month}/${day}/${year}`;
-
-    const payload = {
-      criteria: [
-        {
-          departureStation: dto.origin,
-          arrivalStation: dto.destination,
-          std: formattedDate,
-          departureDate: dto.departureDate,
-        },
-      ],
-      passengers: [
-        { type: 'ADT', count: dto.adults.toString(), companionPass: false },
-        ...(dto.children > 0 ? [{ type: 'CHD', count: dto.children.toString(), companionPass: false }] : []),
-        ...(dto.infants > 0 ? [{ type: 'INF', count: dto.infants.toString(), companionPass: false }] : []),
-      ],
-      flexibleDays: {
-        daysToLeft: (dto.flexDaysLeft ?? 3).toString(),
-        daysToRight: (dto.flexDaysRight ?? 3).toString(),
-      },
-      currencyCode: 'BRL',
-    };
-
-    const url = 'https://b2c-api.voeazul.com.br/reservationavailability/api/reservation/availability/v5/availability';
-
-    try {
-      const response = await request({
-        url,
-        data: payload,
-        headers: {
-          accept: 'application/json, text/plain, */*',
-          authorization: `Bearer ${credentials.bearerToken}`,
-          'content-type': 'application/json',
-          culture: 'pt-BR',
-          device: 'novosite',
-          'ocp-apim-subscription-key': credentials.subscriptionKey,
-          origin: 'https://www.voeazul.com.br',
-          referer: 'https://www.voeazul.com.br/',
-          Cookie: credentials.cookies,
-        },
-      });
-
-      this.logger.log(`Voo da Azul buscado com sucesso via Cuimp`);
-
-      const allFlights = this.parseAzulFlights(response.data);
-
-      if (allFlights.length > 0) {
-        this.flightHistoryService
-          .saveSearchResults(dto.origin, dto.destination, dto.departureDate, 'Azul', allFlights)
-          .catch((err) => this.logger.error(`Erro ao salvar histórico Azul: ${err.message}`));
-      }
-
-      const cabinMap: Record<string, string> = {
-        ECONOMIC: 'Economic',
-        BUSINESS: 'Business',
-        FIRST: 'First',
-      };
-      const targetCabin = dto.cabin && dto.cabin !== 'ALL' ? cabinMap[dto.cabin] || dto.cabin : undefined;
-
-      return this.filterAndSortFlights(allFlights, targetCabin, dto.orderBy, 'price');
-    } catch (error: any) {
-      this.handleCuimpError('Azul', error);
-    }
-  }
-
-  private parseAzulFlights(data: any): ParsedFlight[] {
-    const flights: ParsedFlight[] = [];
-
-    for (const dayData of data || []) {
-      const journeys = dayData.journeys || [];
-
-      for (const journey of journeys) {
-        if (!journey.status?.available) continue;
-
-        const availableFare = journey.fares?.find((f: any) => f.paxFares?.length > 0);
-        if (!availableFare) continue;
-
-        const identifier = journey.identifier;
-        const segments = journey.segments || [];
-        const isDirect = (identifier.connections?.count || 0) === 0;
-
-        const cabin = availableFare.productClass?.category || 'Economic';
-
-        const flight: ParsedFlight = {
-          uid: journey.journeyKey,
-          airline: 'Azul',
-          cabin,
-          availableSeats: this.getMinRemainingSeats(segments),
-          stops: identifier.connections?.count || 0,
-          departure: {
-            ...(isDirect && {
-              flightCode: `${identifier.carrierCode}${identifier.flightNumber}`,
-            }),
-            date: identifier.std,
-            airport: identifier.departureStation,
-            name: identifier.departureStation,
-          },
-          arrival: {
-            date: identifier.sta,
-            airport: identifier.arrivalStation,
-            name: identifier.arrivalStation,
-          },
-          duration: {
-            hours: Math.floor(identifier.duration?.hours || 0),
-            minutes: Math.floor(identifier.duration?.minutes || 0),
-          },
-          price: availableFare.paxFares?.[0]?.totalAmount || 0,
-          currency: availableFare.paxFares?.[0]?.currencyCode || 'BRL',
-          productClass: availableFare.productClass?.name,
-        };
-
-        if (!isDirect && segments.length > 0) {
-          flight.legs = segments.map((segment: any) => ({
-            flightCode: `${segment.identifier.carrierCode}${segment.identifier.flightNumber}`,
-            cabin,
-            aircraft: segment.equipment?.name,
-            departure: {
-              date: segment.identifier.std,
-              airport: segment.identifier.departureStation,
-            },
-            arrival: {
-              date: segment.identifier.sta,
-              airport: segment.identifier.arrivalStation,
-            },
-          }));
-        }
-
-        flights.push(flight);
-      }
-    }
-
-    return flights;
-  }
-
   private filterAndSortFlights(
     flights: ParsedFlight[],
     cabin: string | undefined,
@@ -306,10 +165,10 @@ export class SearchService {
     costField: 'miles' | 'price',
   ): ParsedFlight[] {
     let filtered = flights;
-
-    if (cabin) {
+    
+    if (cabin != "ALL") {
       filtered = flights.filter((f) => f.cabin === cabin);
-    }
+    } 
 
     if (orderBy === 'preco') {
       filtered.sort((a, b) => (a[costField] || 0) - (b[costField] || 0));
@@ -324,21 +183,6 @@ export class SearchService {
     }
 
     return filtered.slice(0, 3);
-  }
-
-  private getMinRemainingSeats(segments: any[]): number {
-    let minSeats = Number.MAX_VALUE;
-
-    for (const segment of segments) {
-      for (const leg of segment.legs || []) {
-        const remaining = leg.legInfo?.remainingSeats ?? Number.MAX_VALUE;
-        if (remaining < minSeats) {
-          minSeats = remaining;
-        }
-      }
-    }
-
-    return minSeats === Number.MAX_VALUE ? 0 : minSeats;
   }
 
   private handleCuimpError(provider: string, error: any): never {

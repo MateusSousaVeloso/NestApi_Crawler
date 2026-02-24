@@ -5,6 +5,7 @@ import { ForbiddenException, Inject, Injectable, UnauthorizedException } from '@
 import { JWT_CONSTANTS_TOKEN } from '../constants';
 import type { JwtConstants } from '../constants';
 import { UsersService } from '../../users/users.service';
+import { hashToken } from '../../common/hashToken';
 
 @Injectable()
 export class RefreshTokenStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
@@ -31,7 +32,8 @@ export class RefreshTokenStrategy extends PassportStrategy(Strategy, 'jwt-refres
       throw new UnauthorizedException('Sessão expirada. Faça login novamente.');
     }
 
-    if (user.token !== refreshToken) {
+    const hashedIncoming = hashToken(refreshToken);
+    if (user.token !== hashedIncoming) {
       await this.usersService.updateToken(payload.id, null);
       throw new UnauthorizedException('Token inválido. Sessão revogada por segurança.');
     }

@@ -13,8 +13,8 @@ model User {
   phone_number     String                @unique
   email            String                @unique
   password         String
-  createdAt        DateTime              @default(now())
-  updatedAt        DateTime              @updatedAt
+  createdAt        DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime              @default(now()) @updatedAt @db.Timestamptz(6)
   preferences      Json?
   token            String?               @unique
   histories        History[]
@@ -68,8 +68,8 @@ model UserRoutePreference {
   cabinType       CabinType      @default(ANY)
   alertFrequency  AlertFrequency @default(DAILY)
   isActive        Boolean        @default(true)
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  createdAt       DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime       @default(now()) @updatedAt @db.Timestamptz(6)
   userId          String
   dateEnd         DateTime?      @db.Date
   dateStart       DateTime?      @db.Date
@@ -171,4 +171,5 @@ enum AlertFrequency {
 enum SubscriptionStatus {
   active
   cancelled
+  expired
 }

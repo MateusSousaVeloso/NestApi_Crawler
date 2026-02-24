@@ -2,6 +2,7 @@ import { Injectable, ConflictException, NotFoundException } from '@nestjs/common
 import { PrismaService } from '../database/prisma.service';
 import { CreateUserDto, UpdateUserDto } from './users.dto';
 import * as bcrypt from 'bcrypt';
+import { hashToken } from '../common/hashToken';
 
 @Injectable()
 export class UsersService {
@@ -41,12 +42,13 @@ export class UsersService {
   }
 
   async updateToken(id: string, token: string | null) {
+    const hashedToken = token ? hashToken(token) : null;
     return this.prisma.user.update({
       where: { id },
-      data: { token },
+      data: { token: hashedToken },
     });
   }
-
+ 
   async updatePreferences(id: string, preferences: Record<string, any>) {
     const userExists = await this.prisma.user.findUnique({ where: { id } });
     if (!userExists) throw new NotFoundException('Usuário não existe.');

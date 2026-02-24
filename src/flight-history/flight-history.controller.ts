@@ -1,9 +1,11 @@
-import { Controller, Get, Param, Query, HttpCode, HttpStatus, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Param, Query, HttpCode, HttpStatus, NotFoundException, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { FlightHistoryService } from './flight-history.service';
 import { FlightHistoryFilterDto } from './flight-history.dto';
+import { AccessTokenGuard } from '../common/guards/accessToken.guard';
 
 @ApiTags('Flight History')
+@UseGuards(AccessTokenGuard)
 @Controller('flight-history')
 export class FlightHistoryController {
   constructor(private readonly flightHistoryService: FlightHistoryService) {}
@@ -16,7 +18,7 @@ export class FlightHistoryController {
   @ApiQuery({ name: 'destination', required: false, description: 'IATA do destino' })
   @ApiQuery({ name: 'dateFrom', required: false, description: 'Data inicial (YYYY-MM-DD)' })
   @ApiQuery({ name: 'dateTo', required: false, description: 'Data final (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'provider', required: false, description: 'Provedor (Smiles, Azul)' })
+  @ApiQuery({ name: 'provider', required: false, description: 'Provedor (Smiles)' })
   @ApiQuery({ name: 'airline', required: false, description: 'Companhia aerea (COPA, AMERICAN AIRLINES, etc.)' })
   @ApiQuery({ name: 'stops', required: false, description: 'Numero de paradas (0=direto, 1, 2)' })
   @ApiQuery({ name: 'cabin', required: false, description: 'Classe (ECONOMIC, BUSINESS, FIRST)' })

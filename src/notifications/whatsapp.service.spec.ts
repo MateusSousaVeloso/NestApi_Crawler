@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { WhatsAppService } from './whatsapp.service';
 import axios from 'axios';
+import { Logger } from '@nestjs/common';
 
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
@@ -22,10 +23,7 @@ describe('WhatsAppService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        WhatsAppService,
-        { provide: ConfigService, useValue: mockConfigService },
-      ],
+      providers: [WhatsAppService, { provide: ConfigService, useValue: mockConfigService }],
     }).compile();
 
     service = module.get<WhatsAppService>(WhatsAppService);
@@ -59,11 +57,14 @@ describe('WhatsAppService', () => {
     });
 
     it('should not throw on error', async () => {
+      const loggerSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+
       mockedAxios.post.mockRejectedValue(new Error('Network error'));
 
-      await expect(
-        service.sendMessage('5511999999999', 'Hello'),
-      ).resolves.not.toThrow();
+      await expect(service.sendMessage('5511949381549', 'Hello')).resolves.not.toThrow();
+
+      expect(loggerSpy).toHaveBeenCalledWith('Erro ao enviar mensagem para 5511949381549: Network error');
+      loggerSpy.mockRestore();
     });
   });
 });

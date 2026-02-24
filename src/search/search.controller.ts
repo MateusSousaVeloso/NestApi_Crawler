@@ -1,7 +1,7 @@
 import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { SearchService } from './search.service';
-import { SmilesSearchDto, AzulSearchDto } from './search.dto';
+import { SmilesSearchDto } from './search.dto';
 
 @ApiTags('Search')
 @Controller('search')
@@ -16,15 +16,4 @@ export class SearchController {
   async searchSmiles(@Body() dto: SmilesSearchDto) {
     return this.searchService.searchSmiles(dto);
   }
-
-  @Post('azul')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Buscar voos na Azul' })
-  @ApiResponse({ status: 200, description: 'Resultados da busca na Azul.' })
-  @ApiResponse({ status: 502, description: 'Falha ao comunicar com a API da Azul.' })
-  @ApiBody({ type: AzulSearchDto })
-  async searchAzul(@Body() dto: AzulSearchDto) {
-    return this.searchService.searchAzul(dto);
-  }
-
 }
