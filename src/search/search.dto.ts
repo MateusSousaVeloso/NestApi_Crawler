@@ -30,7 +30,10 @@ export class FlightSearchDto {
   @IsNotEmpty()
   departureDate: string;
 
-  @ApiPropertyOptional({ example: '2026-03-21', description: 'Data final de partida (YYYY-MM-DD) - opcional para pesquisar voo de um range de dias' })
+  @ApiPropertyOptional({
+    example: '2026-03-21',
+    description: 'Data final de partida (YYYY-MM-DD) - opcional para pesquisar voo de um range de dias',
+  })
   @IsDateString()
   @IsOptional()
   finalDate?: string;
@@ -70,3 +73,5 @@ export class SmilesSearchDto extends FlightSearchDto {
   @IsOptional()
   memberNumber?: string;
 }
+
+export class AzulSearchDto extends FlightSearchDto {}

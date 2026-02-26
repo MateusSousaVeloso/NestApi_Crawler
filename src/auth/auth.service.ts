@@ -30,10 +30,10 @@ export class AuthService {
       throw new UnauthorizedException('Credenciais inválidas.');
     }
 
-    const passwordMatch = await bcrypt.compare(data.password, user.password);
-    if (!passwordMatch) {
-      throw new UnauthorizedException('Credenciais inválidas.');
-    }
+      const passwordMatch = await bcrypt.compare(data.password, user.password);
+      if (!passwordMatch) {
+        throw new UnauthorizedException('Credenciais inválidas.');
+      }
 
     const { accessToken, refreshToken } = await this.getTokens(user.id, user.email);
     await this.usersService.updateToken(user.id, refreshToken);
