@@ -3,7 +3,7 @@ import { request } from 'cuimp';
 import { SmilesSearchDto } from './search.dto';
 import { FlightHistoryService } from '../flight-history/flight-history.service';
 import { ParsedFlight } from './search.interfaces';
-import { CabinType } from 'prisma/generated/client';
+import { CabinClass } from './search.dto';
 
 @Injectable()
 export class SearchService {
@@ -166,7 +166,7 @@ export class SearchService {
   ): ParsedFlight[] {
     let filtered = flights;
     
-    if (cabin != "ALL") {
+    if (cabin !== CabinClass.ALL) {
       filtered = flights.filter((f) => f.cabin === cabin);
     } 
 

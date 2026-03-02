@@ -1,3 +1,5 @@
+import type { ParsedFlight, FlightLeg } from '../search/search.interfaces';
+
 const MONTHS_PT = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 
 const WEEKDAYS_PT = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
@@ -39,7 +41,7 @@ function formatLegDate(dateStr: string): string {
   return `${day}/${month}`;
 }
 
-export function formatFlightMessage(flight: any, index: number): string {
+export function formatFlightMessage(flight: ParsedFlight, index: number): string {
   const isDirect = flight.stops === 0;
   const durationHours = flight.duration?.hours || 0;
   const durationMinutes = flight.duration?.minutes || 0;
@@ -48,7 +50,7 @@ export function formatFlightMessage(flight: any, index: number): string {
   const departureTime = extractTime(flight.departure.date);
   const arrivalDate = formatDateExtended(flight.arrival.date);
   const arrivalTime = extractTime(flight.arrival.date);
-  const miles = formatMiles(flight.miles);
+  const miles = formatMiles(flight.miles ?? 0);
   const cabin = formatCabin(flight.cabin);
 
   if (isDirect) {
@@ -65,7 +67,7 @@ export function formatFlightMessage(flight: any, index: number): string {
   }
 
   const legs = (flight.legs || [])
-    .map((leg: any) => {
+    .map((leg: FlightLeg) => {
       const legDepTime = extractTime(leg.departure.date);
       const legArrTime = extractTime(leg.arrival.date);
       const legDate = formatLegDate(leg.departure.date);
@@ -87,7 +89,7 @@ export function formatFlightMessage(flight: any, index: number): string {
   ].join('\n');
 }
 
-export function formatFlightsForDate(date: string, flights: any[], origin: string, destination: string): string {
+export function formatFlightsForDate(date: string, flights: ParsedFlight[], origin: string, destination: string): string {
   if (!flights || flights.length === 0) {
     return `📅 *${formatDateExtended(date + 'T12:00:00Z')}*\n${origin} → ${destination}\n\nNenhum voo encontrado para esta data.`;
   }

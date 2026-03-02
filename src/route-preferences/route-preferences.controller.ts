@@ -12,6 +12,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { RoutePreferencesService } from './route-preferences.service';
 import {
   CreateRoutePreferenceDto,
@@ -31,7 +32,7 @@ export class RoutePreferencesController {
   @ApiOperation({ summary: 'Criar nova rota favorita' })
   @ApiResponse({ status: 201, description: 'Rota criada com sucesso.' })
   @ApiResponse({ status: 401, description: 'Não autorizado.' })
-  async create(@Req() req, @Body() dto: CreateRoutePreferenceDto) {
+  async create(@Req() req: Request & { user: { id: string } }, @Body() dto: CreateRoutePreferenceDto) {
     return this.routePreferencesService.create(req.user.id, dto);
   }
 
@@ -39,7 +40,7 @@ export class RoutePreferencesController {
   @ApiOperation({ summary: 'Listar todas as rotas favoritas do usuário' })
   @ApiResponse({ status: 200, description: 'Lista de rotas retornada.' })
   @ApiResponse({ status: 401, description: 'Não autorizado.' })
-  async findAll(@Req() req) {
+  async findAll(@Req() req: Request & { user: { id: string } }) {
     return this.routePreferencesService.findAll(req.user.id);
   }
 
@@ -49,7 +50,7 @@ export class RoutePreferencesController {
   @ApiResponse({ status: 200, description: 'Detalhes da rota retornados.' })
   @ApiResponse({ status: 404, description: 'Rota não encontrada.' })
   @ApiResponse({ status: 401, description: 'Não autorizado.' })
-  async findOne(@Req() req, @Param('id') id: string) {
+  async findOne(@Req() req: Request & { user: { id: string } }, @Param('id') id: string) {
     return this.routePreferencesService.findOne(req.user.id, id);
   }
 
@@ -59,7 +60,7 @@ export class RoutePreferencesController {
   @ApiResponse({ status: 200, description: 'Rota atualizada com sucesso.' })
   @ApiResponse({ status: 404, description: 'Rota não encontrada.' })
   @ApiResponse({ status: 401, description: 'Não autorizado.' })
-  async update(@Req() req, @Param('id') id: string, @Body() dto: UpdateRoutePreferenceDto) {
+  async update(@Req() req: Request & { user: { id: string } }, @Param('id') id: string, @Body() dto: UpdateRoutePreferenceDto) {
     return this.routePreferencesService.update(req.user.id, id, dto);
   }
 
@@ -69,7 +70,7 @@ export class RoutePreferencesController {
   @ApiResponse({ status: 200, description: 'Status da rota atualizado.' })
   @ApiResponse({ status: 404, description: 'Rota não encontrada.' })
   @ApiResponse({ status: 401, description: 'Não autorizado.' })
-  async toggle(@Req() req, @Param('id') id: string, @Body() dto: ToggleRoutePreferenceDto) {
+  async toggle(@Req() req: Request & { user: { id: string } }, @Param('id') id: string, @Body() dto: ToggleRoutePreferenceDto) {
     return this.routePreferencesService.toggle(req.user.id, id, dto.isActive);
   }
 
@@ -80,7 +81,7 @@ export class RoutePreferencesController {
   @ApiResponse({ status: 204, description: 'Rota removida com sucesso.' })
   @ApiResponse({ status: 404, description: 'Rota não encontrada.' })
   @ApiResponse({ status: 401, description: 'Não autorizado.' })
-  async remove(@Req() req, @Param('id') id: string) {
+  async remove(@Req() req: Request & { user: { id: string } }, @Param('id') id: string) {
     return this.routePreferencesService.remove(req.user.id, id);
   }
 }

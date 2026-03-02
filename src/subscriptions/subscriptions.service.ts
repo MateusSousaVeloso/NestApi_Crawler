@@ -19,17 +19,13 @@ export class SubscriptionsService {
     if (!plan) throw new NotFoundException('Plano não encontrado.');
     const user = await this.findUserOrThrow(userId);
 
-    await this.prisma.userSubscription.deleteMany({
-      where: { userPhone: user.phone_number, status: SubscriptionStatus.active },
-    });
-
     const paymentDate = new Date();
     const endDate = new Date(paymentDate);
     endDate.setDate(endDate.getDate() + plan.durationDays);
 
     return this.prisma.$transaction(async (tx) => {
       await tx.userSubscription.deleteMany({
-        where: { userPhone: user.phone_number },
+        where: { userPhone: user.phone_number, status: SubscriptionStatus.active },
       });
 
       return tx.userSubscription.create({

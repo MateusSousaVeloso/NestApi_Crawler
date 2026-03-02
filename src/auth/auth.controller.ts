@@ -6,6 +6,7 @@ import { AccessTokenGuard } from '../common/guards/accessToken.guard';
 import { RefreshTokenGuard } from '../common/guards/refreshToken.guard';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 import { CreateUserDto } from '../users/users.dto';
+import type { Request, Response } from 'express';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -40,7 +41,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Encerrar sessão (Logout)' })
   @ApiResponse({ status: 200, description: 'Logout realizado com sucesso.' })
   @ApiResponse({ status: 401, description: 'Não autorizado.' })
-  async logout(@Res({ passthrough: true }) res, @Req() req) {
+  async logout(@Res({ passthrough: true }) res: Response, @Req() req: Request & { user: { id: string } }) {
     await this.authService.logout(req.user['id']);
     res.clearCookie(process.env.REFRESH_TOKEN || 'refresh_token').clearCookie(process.env.ACCESS_TOKEN || 'access_token');
     return { message: 'Logout realizado com sucesso.' };
@@ -53,7 +54,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Renovar Access Token usando Refresh Token' })
   @ApiResponse({ status: 200, description: 'Tokens renovados com sucesso.' })
   @ApiResponse({ status: 401, description: 'Refresh token inválido ou expirado.' })
-  async refreshTokens(@Res({ passthrough: true }) res, @Req() req) {
+  async refreshTokens(@Res({ passthrough: true }) res: Response, @Req() req: Request & { user: { id: string } }) {
     const { accessToken, refreshToken } = await this.authService.refreshTokens(req['user'].id);
     res
       .cookie(process.env.ACCESS_TOKEN || 'access_token', accessToken, {

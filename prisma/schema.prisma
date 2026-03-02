@@ -37,14 +37,15 @@ model SubscriptionPlan {
 
 model UserSubscription {
   id           String             @id @default(dbgenerated("gen_random_uuid()"))
-  payment_date DateTime           @default(now())
-  end_date     DateTime
+  payment_date DateTime           @default(now()) @db.Timestamptz(6)
+  end_date     DateTime           @db.Timestamptz(6)
   planId       Int
   userPhone    String             @unique @db.VarChar(20)
   status       SubscriptionStatus @default(active)
   plan         SubscriptionPlan   @relation(fields: [planId], references: [id])
   user         User               @relation(fields: [userPhone], references: [phone_number], onDelete: Cascade)
 
+  @@index([userPhone, status])
   @@map("user_subscriptions")
 }
 
@@ -52,7 +53,7 @@ model History {
   id         String   @id @default(dbgenerated("gen_random_uuid()"))
   session_id String
   message    Json
-  createdAt  DateTime @default(now())
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
   user       User     @relation(fields: [session_id], references: [phone_number], onDelete: Cascade)
 
   @@index([session_id])
@@ -76,6 +77,7 @@ model UserRoutePreference {
   user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([isActive, alertFrequency])
   @@map("user_route_preferences")
 }
 
@@ -98,7 +100,7 @@ model TripInfo {
 model FlightSearchResult {
   id               String               @id @default(dbgenerated("gen_random_uuid()"))
   flightDate       DateTime             @db.Date
-  searchedAt       DateTime             @default(now())
+  searchedAt       DateTime             @default(now()) @db.Timestamptz(6)
   origin           String               @db.VarChar(10)
   destination      String               @db.VarChar(10)
   provider         String               @db.VarChar(30)
@@ -133,8 +135,8 @@ model FlightSearchDetail {
   departureAirport String             @db.VarChar(10)
   arrivalTime      String             @db.VarChar(15)
   arrivalAirport   String             @db.VarChar(10)
-  departureDate    DateTime?
-  arrivalDate      DateTime?
+  departureDate    DateTime?          @db.Timestamptz(6)
+  arrivalDate      DateTime?          @db.Timestamptz(6)
   durationHours    Int                @default(0)
   durationMinutes  Int                @default(0)
   miles            Int                @default(0)
@@ -145,6 +147,7 @@ model FlightSearchDetail {
   searchResult     FlightSearchResult @relation(fields: [searchResultId], references: [id], onDelete: Cascade)
 
   @@index([searchResultId])
+  @@index([searchResultId, cabin, miles])
   @@index([airline])
   @@index([cabin])
   @@map("flight_search_details")

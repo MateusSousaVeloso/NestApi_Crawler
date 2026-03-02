@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { FlightHistoryFilterDto } from './flight-history.dto';
+import type { ParsedFlight, FlightLeg } from '../search/search.interfaces';
+import type { Prisma } from '../../prisma/generated/client';
 
 @Injectable()
 export class FlightHistoryService {
@@ -8,7 +10,7 @@ export class FlightHistoryService {
 
   constructor(private prisma: PrismaService) {}
 
-  private buildRoute(f: any, origin: string, destination: string): string {
+  private buildRoute(f: ParsedFlight, origin: string, destination: string): string {
     if (!f.legs || f.legs.length === 0) {
       return `${f.departure?.airport || origin}/${f.arrival?.airport || destination}`;
     }
@@ -36,7 +38,7 @@ export class FlightHistoryService {
     if (!dateStr) return '00:00';
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return '00:00';
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
   }
 
   private getDayOffset(depStr: string | null, arrStr: string | null): string {
@@ -53,7 +55,7 @@ export class FlightHistoryService {
     return '';
   }
 
-  private buildFlightBase(f: any, origin: string, destination: string) {
+  private buildFlightBase(f: ParsedFlight, origin: string, destination: string) {
     const depDateStr = f.departure?.date || null;
     const arrDateStr = f.arrival?.date || null;
     const depTime = this.extractTime(depDateStr);
@@ -64,7 +66,7 @@ export class FlightHistoryService {
 
     let flightCode = f.departure?.flightCode || null;
     if (!isDirect && f.legs) {
-      flightCode = f.legs.map((leg: any) => leg.flightCode).filter(Boolean).join(', ');
+      flightCode = f.legs.map((leg: FlightLeg) => leg.flightCode).filter(Boolean).join(', ');
     }
 
     const cabinLetter = (f.cabin || 'Y').charAt(0).toUpperCase();
@@ -92,7 +94,7 @@ export class FlightHistoryService {
     };
   }
 
-  private buildMinJson(f: any, origin: string, destination: string): object | undefined {
+  private buildMinJson(f: ParsedFlight | null, origin: string, destination: string): object | undefined {
     if (!f) return undefined;
     const { depDateStr, arrDateStr, ...base } = this.buildFlightBase(f, origin, destination);
     return {
@@ -102,14 +104,14 @@ export class FlightHistoryService {
     };
   }
 
-  private buildDetailData(f: any, origin: string, destination: string) {
+  private buildDetailData(f: ParsedFlight, origin: string, destination: string) {
     const { depDateStr, arrDateStr, ...base } = this.buildFlightBase(f, origin, destination);
     return {
       uid: f.uid || null,
       ...base,
       departureDate: depDateStr ? new Date(depDateStr) : null,
       arrivalDate: arrDateStr ? new Date(arrDateStr) : null,
-      legsJson: f.legs || null,
+      legsJson: f.legs ? (f.legs as unknown as Prisma.InputJsonValue) : undefined,
     };
   }
 
@@ -118,7 +120,7 @@ export class FlightHistoryService {
     destination: string,
     flightDate: string,
     provider: string,
-    flights: any[],
+    flights: ParsedFlight[],
   ) {
     if (!flights || flights.length === 0) return;
 
@@ -126,10 +128,10 @@ export class FlightHistoryService {
     let premiumMin: number | null = null;
     let businessMin: number | null = null;
     let firstMin: number | null = null;
-    let economyMinFlight: any = null;
-    let premiumMinFlight: any = null;
-    let businessMinFlight: any = null;
-    let firstMinFlight: any = null;
+    let economyMinFlight: ParsedFlight | null = null;
+    let premiumMinFlight: ParsedFlight | null = null;
+    let businessMinFlight: ParsedFlight | null = null;
+    let firstMinFlight: ParsedFlight | null = null;
 
     for (const f of flights) {
       const cost = f.miles || f.price || 0;
@@ -207,7 +209,7 @@ export class FlightHistoryService {
   }
 
   async findAll(filter: FlightHistoryFilterDto) {
-    const where: any = {};
+    const where: Prisma.FlightSearchResultWhereInput = {};
 
     if (filter.origin) {
       where.origin = filter.origin.toUpperCase();

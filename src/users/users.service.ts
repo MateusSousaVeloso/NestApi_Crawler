@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { CreateUserDto, UpdateUserDto } from './users.dto';
 import * as bcrypt from 'bcrypt';
@@ -10,7 +10,6 @@ export class UsersService {
 
   async create(data: CreateUserDto) {
     const hashedPassword = await bcrypt.hash(data.password, 12);
-    if (data.password && !hashedPassword) throw new ConflictException('Erro ao processar a senha. Tente novamente mais tarde.');
 
     const user = await this.prisma.user.create({
       data: {

@@ -52,6 +52,9 @@ export class AirportsService {
 
   searchByState(state: string): AirportResult[] {
     const term = state.toLowerCase();
-    return this.airports.filter((a) => a.state.toLowerCase().includes(term)).map((a) => ({ iata: a.iata, name: a.name }));
+    return this.airports
+      .filter((a) => a.state.toLowerCase().includes(term))
+      .slice(0, 20)
+      .map((a) => ({ iata: a.iata, name: a.name }));
   }
 }

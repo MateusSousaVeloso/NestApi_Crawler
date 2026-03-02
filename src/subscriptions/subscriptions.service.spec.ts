@@ -80,9 +80,6 @@ describe('SubscriptionsService', () => {
       expect(prisma.userSubscription.deleteMany).toHaveBeenCalledWith({
         where: { userPhone: mockPhoneNumber, status: 'active' },
       });
-      expect(prisma.userSubscription.deleteMany).toHaveBeenCalledWith({
-        where: { userPhone: mockPhoneNumber },
-      });
       expect(prisma.userSubscription.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           userPhone: mockPhoneNumber,

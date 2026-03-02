@@ -1,5 +1,6 @@
 import { Controller, Post, Get, Patch, Body, UseGuards, Req, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { SubscriptionsService } from './subscriptions.service';
 import { SubscribeDto } from './subscriptions.dto';
 import { AccessTokenGuard } from '../common/guards/accessToken.guard';
@@ -17,7 +18,7 @@ export class SubscriptionsController {
   @ApiResponse({ status: 201, description: 'Assinatura realizada com sucesso.' })
   @ApiResponse({ status: 401, description: 'Não autorizado.' })
   @ApiResponse({ status: 404, description: 'Plano não encontrado.' })
-  async subscribe(@Req() req, @Body() body: SubscribeDto) {
+  async subscribe(@Req() req: Request & { user: { id: string } }, @Body() body: SubscribeDto) {
     return this.subscriptionsService.subscribe(req.user.id, body.planId);
   }
 
@@ -27,7 +28,7 @@ export class SubscriptionsController {
   @ApiResponse({ status: 200, description: 'Dados da assinatura retornados.' })
   @ApiResponse({ status: 401, description: 'Não autorizado.' })
   @ApiResponse({ status: 404, description: 'Nenhuma assinatura ativa encontrada.' })
-  async getMySubscription(@Req() req) {
+  async getMySubscription(@Req() req: Request & { user: { id: string } }) {
     return this.subscriptionsService.getMySubscription(req.user.id);
   }
 
@@ -38,7 +39,7 @@ export class SubscriptionsController {
   @ApiResponse({ status: 204, description: 'Assinatura excluída com sucesso.' })
   @ApiResponse({ status: 401, description: 'Não autorizado.' })
   @ApiResponse({ status: 404, description: 'Nenhuma assinatura ativa para cancelar.' })
-  async cancel(@Req() req) {
+  async cancel(@Req() req: Request & { user: { id: string } }) {
     return this.subscriptionsService.cancelSubscription(req.user.id);
   }
 }
