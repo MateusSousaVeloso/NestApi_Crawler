@@ -6,21 +6,49 @@ import { CreateRoutePreferenceDto, UpdateRoutePreferenceDto } from './route-pref
 export class RoutePreferencesService {
   constructor(private prisma: PrismaService) {}
 
-  async create(userId: string, dto: CreateRoutePreferenceDto) {
-    const { dateStart, dateEnd, ...rest } = dto;
+  private validateDateRange(dateStart?: string, dateEnd?: string) {
     if (dateEnd) {
+      if (!dateStart) {
+        throw new HttpException(
+          { message: 'Data inicial é obrigatória quando data final é informada' },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
       const start = new Date(dateStart + 'T00:00:00');
       const end = new Date(dateEnd + 'T00:00:00');
       const diffDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
 
       if (diffDays < 0) {
-        throw new HttpException({ message: 'Data final deve ser posterior a data inicial' }, HttpStatus.BAD_REQUEST);
+        throw new HttpException(
+          { message: 'Data final deve ser posterior a data inicial' },
+          HttpStatus.BAD_REQUEST,
+        );
       }
 
       if (diffDays > 15) {
-        throw new HttpException({ message: 'O limite é 15 dias por pesquisa' }, HttpStatus.BAD_REQUEST);
+        throw new HttpException(
+          { message: 'O limite é 15 dias por pesquisa' },
+          HttpStatus.BAD_REQUEST,
+        );
       }
     }
+  }
+
+  async create(userId: string, dto: CreateRoutePreferenceDto) {
+    const routeCount = await this.prisma.userRoutePreference.count({
+      where: { userId, isActive: true },
+    });
+
+    if (routeCount >= 10) {
+      throw new HttpException(
+        { message: 'Limite de 10 rotas ativas por usuário atingido' },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const { dateStart, dateEnd, ...rest } = dto;
+    this.validateDateRange(dateStart, dateEnd);
+
     return this.prisma.userRoutePreference.create({
       data: {
         ...rest,
@@ -49,19 +77,8 @@ export class RoutePreferencesService {
   async update(userId: string, id: string, dto: UpdateRoutePreferenceDto) {
     await this.findOne(userId, id);
     const { dateStart, dateEnd, ...rest } = dto;
-    if (dateEnd) {
-      const start = new Date(dateStart + 'T00:00:00');
-      const end = new Date(dateEnd + 'T00:00:00');
-      const diffDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    this.validateDateRange(dateStart, dateEnd);
 
-      if (diffDays < 0) {
-        throw new HttpException({ message: 'Data final deve ser posterior a data inicial' }, HttpStatus.BAD_REQUEST);
-      }
-
-      if (diffDays > 15) {
-        throw new HttpException({ message: 'O limite é 15 dias por pesquisa' }, HttpStatus.BAD_REQUEST);
-      }
-    }
     return this.prisma.userRoutePreference.update({
       where: { id },
       data: {

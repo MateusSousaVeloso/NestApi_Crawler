@@ -19,7 +19,7 @@ export class UsersService {
         email: data.email,
         password: hashedPassword,
       },
-      omit: { password: true },
+      omit: { password: true, token: true },
     });
 
     return user;
@@ -50,9 +50,6 @@ export class UsersService {
   }
  
   async updatePreferences(id: string, preferences: Record<string, any>) {
-    const userExists = await this.prisma.user.findUnique({ where: { id } });
-    if (!userExists) throw new NotFoundException('Usuário não existe.');
-
     return this.prisma.user.update({
       where: { id },
       data: { preferences },
@@ -82,8 +79,6 @@ export class UsersService {
     const userExists = await this.prisma.user.findUnique({ where: { id } });
     if (!userExists) throw new NotFoundException('Usuário não existe.');
 
-    return this.prisma.user.delete({
-      where: { id },
-    });
+    await this.prisma.user.delete({ where: { id } });
   }
 }

@@ -14,14 +14,19 @@ export class RefreshTokenStrategy extends PassportStrategy(Strategy, 'jwt-refres
     private usersService: UsersService,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        (request) => {
+          const token = request?.cookies?.[process.env.REFRESH_TOKEN || 'refresh_token'];
+          return token || null;
+        },
+      ]),
       secretOrKey: constants.refresh_token_secret,
       passReqToCallback: true,
     });
   }
 
   async validate(req: Request, payload: any) {
-    const refreshToken = req.get('Authorization')?.replace('Bearer', '').trim();
+    const refreshToken = req?.cookies?.[process.env.REFRESH_TOKEN || 'refresh_token'] || req.get('Authorization')?.replace('Bearer', '').trim();
     if (!refreshToken) {
       throw new ForbiddenException();
     }
