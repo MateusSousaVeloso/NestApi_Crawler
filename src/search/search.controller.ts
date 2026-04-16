@@ -17,13 +17,13 @@ export class SearchController {
     return this.searchService.searchSmiles(dto);
   }
 
-//   @Post('azul')
-//   @HttpCode(HttpStatus.OK)
-//   @ApiOperation({ summary: 'Buscar voos na Azul' })
-//   @ApiResponse({ status: 200, description: 'Resultados da busca na Azul.' })
-//   @ApiResponse({ status: 502, description: 'Falha ao comunicar com a API da Azul.' })
-//   @ApiBody({ type: AzulSearchDto })
-//   async searchAzul(@Body() dto: AzulSearchDto) {
-//     return this.searchService.searchAzul(dto);
-//   }
+  @Post('azul')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Buscar voos na Azul' })
+  @ApiResponse({ status: 200, description: 'Resultados da busca na Azul.' })
+  @ApiResponse({ status: 502, description: 'Falha ao comunicar com a API da Azul.' })
+  @ApiBody({ type: AzulSearchDto })
+  async searchAzul(@Body() dto: AzulSearchDto) {
+    return this.searchService.searchAzul(dto);
+  }
 }
