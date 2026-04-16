@@ -17,8 +17,10 @@ model User {
   updatedAt        DateTime              @default(now()) @updatedAt @db.Timestamptz(6)
   preferences      Json?
   token            String?               @unique
+  chat_sessions    chat_sessions[]
   histories        History[]
   tripInfo         TripInfo?
+  user_api_keys    user_api_keys?
   routePreferences UserRoutePreference[]
   subscriptions    UserSubscription?
 
@@ -150,6 +152,47 @@ model FlightSearchDetail {
   @@map("flight_search_details")
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model chat_messages {
+  id            String         @id
+  sessionId     String
+  content       String
+  role          ChatRole
+  modelProvider ModelProvider?
+  createdAt     DateTime       @default(now()) @db.Timestamptz(6)
+  chat_sessions chat_sessions  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt(sort: Desc)])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model chat_sessions {
+  id               String          @id
+  userId           String
+  title            String?         @default("Sem título")
+  summary          String          @default("")
+  userMessageCount Int             @default(0)
+  createdAt        DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime        @default(now()) @db.Timestamptz(6)
+  chat_messages    chat_messages[]
+  users            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model user_api_keys {
+  id              String    @id @default(dbgenerated("gen_random_uuid()"))
+  userId          String    @unique
+  geminiKey       String?
+  claudeKey       String?
+  openaiKey       String?
+  claudeUpdatedAt DateTime? @db.Timestamptz(6)
+  geminiUpdatedAt DateTime? @db.Timestamptz(6)
+  openaiUpdatedAt DateTime? @db.Timestamptz(6)
+  users           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
 enum TipoBusca {
   preco
   custo_beneficio
@@ -172,4 +215,16 @@ enum SubscriptionStatus {
   active
   cancelled
   expired
+}
+
+enum ChatRole {
+  user
+  assistant
+  system
+}
+
+enum ModelProvider {
+  claude
+  gpt
+  gemini
 }
