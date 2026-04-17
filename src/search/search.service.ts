@@ -3,13 +3,15 @@ import { request } from 'cuimp';
 import { AzulSearchDto, SmilesSearchDto } from './search.dto';
 import { FlightHistoryService } from '../flight-history/flight-history.service';
 import { ParsedFlight } from './search.interfaces';
+import { firefox } from 'playwright';
 
-const AZUL_AKAMAI_SENSOR_URL = 'https://www.voeazul.com.br/Iq4CfOM3vGbH7KGcUbxx/zu9OLk5SN9iJz4zEEw/FXwEbR59TQ4/AyZRZ/xRJMA0B';
-const AZUL_AKAMAI_SCRIPT_URL = 'https://www.voeazul.com.br/akam/13/4bc5f6ae';
+const AZUL_AKAMAI_SENSOR_URL = 'https://www.voeazul.com.br/1dTvmnOv4/8SdY/S3bsA/tOu1cDzEhac1hS1pJ9/GRsXSw/LT9D/DGx5DAoC';
+const AZUL_AKAMAI_SCRIPT_URL = 'https://www.voeazul.com.br/1dTvmnOv4/8SdY/S3bsA/tOu1cDzEhac1hS1pJ9/GRsXSw/LT9D/DGx5DAoC'
 const AZUL_SEC_CPR_PARAMS_URL = 'https://www.voeazul.com.br/_sec/cpr/params';
 const AZUL_PAGE_URL = 'https://www.voeazul.com.br/br/pt/home/selecao-voo';
 const AZUL_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36';
 const AZUL_SEC_CH_UA = '"Not:A-Brand";v="99", "Google Chrome";v="145", "Chromium";v="145"';
+const AZUL_SEC_CPT_BASE_URL = 'https://www.voeazul.com.br/1dTvmnOv4/8SdY/S3bsA/cku1cDzEhac1/PiwcSw/Sx5j/JDlwSy4PAg';
 
 @Injectable()
 export class SearchService {
@@ -178,10 +180,9 @@ export class SearchService {
   async searchAzul(dto: AzulSearchDto) {
     const referer = this.buildAzulReferer(dto);
     let cookies = await this.fetchAzulPage(dto);
-    cookies = await this.fetchAzulAkamScript(cookies, referer);
-    cookies = await this.resolveSecCpt(cookies, referer);
+    const { cookies: cookiesWithAkam, secCptVersion } = await this.fetchAzulAkamScript(cookies, referer);
     cookies = await this.postAzulSensor(cookies, referer);
-    const session = await this.fetchAzulToken(cookies);
+    const session = await this.fetchAzulToken(cookies, secCptVersion);
 
     if (dto.finalDate) {
       const start = new Date(dto.departureDate + 'T00:00:00');
@@ -245,7 +246,7 @@ export class SearchService {
   }
 
   // Step 2: GET /akam/13/4bc5f6ae
-  private async fetchAzulAkamScript(currentCookies: string, referer: string): Promise<string> {
+  private async fetchAzulAkamScript(currentCookies: string, referer: string): Promise<{ cookies: string; secCptVersion: string }> {
     this.logger.log('[Azul] Step 2: GET akam script...');
     try {
       const r = await request({
@@ -253,7 +254,7 @@ export class SearchService {
         method: 'GET',
         headers: {
           Accept: '*/*',
-          'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+          'Accept-Language': 'pt-BR,pt;q=0.9',
           Referer: referer,
           'Sec-Ch-Ua': AZUL_SEC_CH_UA,
           'Sec-Ch-Ua-Mobile': '?0',
@@ -266,11 +267,16 @@ export class SearchService {
         },
         insecureTLS: false,
       });
-      const c = this.mergeCookies(currentCookies, r);
-      this.logger.log(`[Azul] Step 2 OK. Cookies: ${this.listCookieNames(c)}`);
-      return c;
+      const cookies = this.mergeCookies(currentCookies, r);
+
+      const scriptBody: string = typeof r.data == 'string' ? r.data : JSON.stringify(r.data)
+      const versionMatch = scriptBody.match(/[?&]v=([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
+      const secCptVersion = versionMatch?.[1] ?? '88f7571c-854e-f5b7-3b10-e20ec2440215'; 
+      this.logger.log(`[Azul] Step 2 OK. Cookies: ${this.listCookieNames(cookies)}`);
+      return {cookies, secCptVersion};
     } catch (e: any) {
-      return this.handlePartialCookies(e, currentCookies, 'Step 2 GET akam script');
+      const cookies = this.handlePartialCookies(e, currentCookies, 'Step 2 GET akam script');
+      return { cookies, secCptVersion: '88f7571c-854e-f5b7-3b10-e20ec2440215' };
     }
   }
 
@@ -339,7 +345,7 @@ export class SearchService {
     // Step 5: POST SEC-CPT solution
     this.logger.log('[Azul] Step 5: POST SEC-CPT solution...');
     try {
-      const body = this.generateSecCptSolution(currentCookies);
+      const body = this.generateSecCptSolution('88f7571c-854e-f5b7-3b10-e20ec2440215', currentCookies);
       const r = await request({
         url: secCptPostUrl,
         method: 'POST',
@@ -376,14 +382,14 @@ export class SearchService {
    * Body do POST: {"body":"<encrypted_solution>"}
    * Opcoes pra implementar: vm2/isolated-vm, hyper-sdk
    */
-  private generateSecCptSolution(currentCookies: string): any {
+  private generateSecCptSolution(version: string, currentCookies: string): any {
     throw new Error('SEC-CPT solver nao implementado. Precisa executar o JS do Akamai via vm2/isolated-vm ou hyper-sdk.');
   }
 
   // Step 6 / 8a: POST sensor_data (xRJMA0B)
   private async postAzulSensor(currentCookies: string, referer: string): Promise<string> {
     this.logger.log('[Azul] POST sensor_data...');
-    const sensorData = this.generateSensorData(currentCookies);
+    const sensorData = await this.generateSensorData(referer);
     try {
       const r = await request({
         url: AZUL_AKAMAI_SENSOR_URL,
@@ -417,12 +423,157 @@ export class SearchService {
   }
 
   /** PLACEHOLDER - sensor_data generator. Opcoes: hyper-sdk, akamai-bmp-generator */
-  private generateSensorData(currentCookies: string): string {
-    throw new Error('sensor_data generator nao implementado. npm i hyper-sdk ou https://github.com/xvertile/akamai-bmp-generator');
+  private async generateSensorData(refererUrl: string): Promise<string> {
+    this.logger.log('[Azul] Iniciando Firefox headless para resolver Akamai...');
+    
+    const browser = await firefox.launch({ 
+      headless: true,
+      firefoxUserPrefs: {
+        'dom.webdriver.enabled': false,
+        'useAutomationExtension': false,
+        'media.navigator.enabled': true,
+        'media.peerconnection.enabled': true,
+        'datareporting.healthreport.uploadEnabled': false,
+        'datareporting.policy.dataSubmissionEnabled': false,
+        'toolkit.telemetry.enabled': false,
+        'toolkit.telemetry.unified': false,
+        'webgl.disabled': false,
+        'webgl.enable-webgl2': true,
+        'browser.safebrowsing.enabled': false,
+        'browser.safebrowsing.malware.enabled': false,
+        'media.navigator.hardware_video_decoding.force-enabled': true,
+      },
+      args: [
+        '--no-sandbox',
+        '--disable-blink-features=AutomationControlled',
+      ],
+    });
+
+    try {
+      const context = await browser.newContext({
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0',
+        locale: 'pt-BR',
+        timezoneId: 'America/Sao_Paulo',
+        viewport: { width: 1366, height: 768 },
+        permissions: ['geolocation'],
+        extraHTTPHeaders: {
+          'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+        },
+      });
+
+      await context.setGeolocation({ latitude: -23.5505, longitude: -46.6333 });
+
+      const page = await context.newPage();
+
+      await page.addInitScript(() => {
+        Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+
+        Object.defineProperty(navigator, 'plugins', {
+          get: () => {
+            const plugins = [
+              { name: 'PDF Viewer', filename: 'internal-pdf-viewer' },
+              { name: 'Chrome PDF Viewer', filename: 'internal-pdf-viewer' },
+              { name: 'Chromium PDF Viewer', filename: 'internal-pdf-viewer' },
+            ];
+            plugins['length'] = plugins.length;
+            return plugins;
+          },
+        });
+
+        Object.defineProperty(navigator, 'languages', {
+          get: () => ['pt-BR', 'pt', 'en-US', 'en'],
+        });
+
+        Object.defineProperty(navigator, 'hardwareConcurrency', {
+          get: () => 8,
+        });
+
+        Object.defineProperty(navigator, 'deviceMemory', {
+          get: () => 8,
+        });
+
+        // @ts-ignore
+        delete window.__playwright;
+        // @ts-ignore
+        delete window.__pw_manual;
+        // @ts-ignore
+        delete window._phantom;
+
+        Object.defineProperty(navigator, 'maxTouchPoints', {
+          get: () => 0,
+        });
+
+        Object.defineProperty(navigator, 'platform', {
+          get: () => 'Win32',
+        });
+
+        Object.defineProperty(navigator, 'vendor', {
+          get: () => 'Google Inc.',
+        });
+
+        Object.defineProperty(screen, 'width', { get: () => 1366 });
+        Object.defineProperty(screen, 'height', { get: () => 768 });
+        Object.defineProperty(screen, 'availWidth', { get: () => 1366 });
+        Object.defineProperty(screen, 'availHeight', { get: () => 728 });
+        Object.defineProperty(screen, 'colorDepth', { get: () => 24 });
+        Object.defineProperty(screen, 'pixelDepth', { get: () => 24 });
+      });
+
+      let capturedSensor: string | null = null;
+
+      page.on('request', (request) => {
+        if (request.method() === 'POST') {
+          this.logger.log(`[Azul] POST interceptado: ${request.url()}`);
+          try {
+            const postData = request.postData();
+            this.logger.log(`[Azul] POST body (primeiros 100 chars): ${postData?.substring(0, 100)}`);
+            const body = JSON.parse(postData ?? '{}');
+            if (body.sensor_data) {
+              capturedSensor = body.sensor_data;
+              this.logger.log('[Azul] sensor_data interceptado com sucesso.');
+            }
+          } catch (e: any) {
+            this.logger.warn(`[Azul] Erro ao parsear POST body: ${e.message}`);
+          }
+        }
+      });
+
+      page.on('pageerror', (err) => {
+        this.logger.error(`[Azul] Erro JS na página: ${err.message}`);
+      });
+
+      page.on('response', (response) => {
+        const url = response.url();
+        if (url.includes('voeazul') || url.includes('1dTvmnOv4')) {
+          this.logger.log(`[Azul] Response: ${response.status()} ${url.substring(0, 100)}`);
+        }
+      });
+
+      this.logger.log(`[Azul] Navegando para: ${refererUrl}`);
+      await page.goto(refererUrl, { waitUntil: 'networkidle', timeout: 45000 });
+      this.logger.log('[Azul] networkidle atingido.');
+
+      if (!capturedSensor) {
+        this.logger.warn('[Azul] Sensor não capturado após networkidle. Aguardando 5s...');
+        await page.waitForTimeout(10000);
+      }
+
+      this.logger.log(`[Azul] Estado final — sensor capturado: ${!!capturedSensor}`);
+
+      if (!capturedSensor) {
+        throw new Error('[Azul] Não foi possível interceptar o sensor_data.');
+      }
+
+      return capturedSensor;
+
+    } finally {
+      await browser.close();
+      this.logger.log('[Azul] Firefox headless fechado.');
+    }
   }
 
   // Step 7: POST token
-  private async fetchAzulToken(currentCookies: string): Promise<{ token: string; cookieString: string }> {
+  private async fetchAzulToken(currentCookies: string, secCptVersion: string): Promise<{ token: string; cookieString: string; secCptVersion: string}> {
     this.logger.log('[Azul] Step 7: POST token...');
     try {
       const r = await request({
@@ -453,14 +604,14 @@ export class SearchService {
       const token = (r.data as any)?.data || (r.data as any)?.access_token || '';
       const cookieString = this.mergeCookies(currentCookies, r);
       this.logger.log('[Azul] Step 7 OK. Token obtido.');
-      return { token, cookieString };
+      return { token, cookieString, secCptVersion };
     } catch (e: any) {
       this.handleCuimpError('Azul Token', e);
     }
   }
 
   // Step 8: sensor -> DELETE bookings -> POST availability
-  private async fetchAzulFlights(dto: AzulSearchDto, dateString: string, session: { token: string; cookieString: string }, referer: string) {
+  private async fetchAzulFlights(dto: AzulSearchDto, dateString: string, session: { token: string; cookieString: string, secCptVersion: string }, referer: string) {
     try {
       const [year, month, day] = dateString.split('-');
       const stdFormat = `${month}/${day}/${year}`;
@@ -488,6 +639,7 @@ export class SearchService {
         'User-Agent': AZUL_UA,
       };
 
+      this.logger.log(`[Azul] Step 8a: POST sensor para ${dateString}...`);
       currentCookies = await this.postAzulSensor(currentCookies, referer);
 
       this.logger.log(`[Azul] Step 8b: DELETE bookings para ${dateString}...`);
@@ -503,6 +655,37 @@ export class SearchService {
       } catch (de: any) {
         this.logger.warn(`[Azul] DELETE bookings: ${de.status || 'erro'} (ignorando)`);
       }
+
+          this.logger.log(`[Azul] Step 8c: POST SEC-CPT solution para ${dateString}...`);
+      try {
+        const secCptPostUrl = `https://www.voeazul.com.br/1dTvmnOv4/8SdY/S3bsA/cku1cDzEhac1/PiwcSw/Sx5j/JDlwSy4PAg`;
+        const secCptBody = await this.generateSecCptSolution(session.secCptVersion, currentCookies);
+        const sc = await request({
+          url: secCptPostUrl,
+          method: 'POST',
+          headers: {
+            Accept: '*/*',
+            'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Content-Type': 'application/json',
+            Origin: 'https://www.voeazul.com.br',
+            Referer: referer,
+            'Sec-Ch-Ua': AZUL_SEC_CH_UA,
+            'Sec-Ch-Ua-Mobile': '?0',
+            'Sec-Ch-Ua-Platform': '"Windows"',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-origin',
+            'User-Agent': AZUL_UA,
+            Cookie: currentCookies,
+          },
+          data: JSON.stringify({ body: secCptBody }),
+          insecureTLS: false,
+        });
+      currentCookies = this.mergeCookies(currentCookies, sc);
+      this.logger.log(`[Azul] Step 8c OK. Status: ${sc.status}`);
+    } catch (se: any) {
+      this.logger.warn(`[Azul] SEC-CPT solution: ${se.status || 'erro'} (ignorando)`);
+    }
 
       this.logger.log(`[Azul] Step 8c: POST availability para ${dateString}...`);
       const payload = {
