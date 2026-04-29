@@ -12,16 +12,18 @@ export class FlightHistoryController {
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Listar historico de pesquisas de voos' })
-  @ApiResponse({ status: 200, description: 'Lista de pesquisas de voos.' })
-  @ApiQuery({ name: 'origin', required: false, description: 'IATA da origem' })
-  @ApiQuery({ name: 'destination', required: false, description: 'IATA do destino' })
-  @ApiQuery({ name: 'dateFrom', required: false, description: 'Data inicial (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'dateTo', required: false, description: 'Data final (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'provider', required: false, description: 'Provedor (Smiles)' })
-  @ApiQuery({ name: 'airline', required: false, description: 'Companhia aerea (COPA, AMERICAN AIRLINES, etc.)' })
-  @ApiQuery({ name: 'stops', required: false, description: 'Numero de paradas (0=direto, 1, 2)' })
-  @ApiQuery({ name: 'cabin', required: false, description: 'Classe (ECONOMIC, BUSINESS, FIRST)' })
+  @ApiOperation({ summary: 'Listar historico de pesquisas de voos (cursor pagination)' })
+  @ApiResponse({ status: 200, description: 'Página de pesquisas de voos com nextCursor.' })
+  @ApiQuery({ name: 'origin', required: false })
+  @ApiQuery({ name: 'destination', required: false })
+  @ApiQuery({ name: 'dateFrom', required: false })
+  @ApiQuery({ name: 'dateTo', required: false })
+  @ApiQuery({ name: 'provider', required: false })
+  @ApiQuery({ name: 'airline', required: false })
+  @ApiQuery({ name: 'stops', required: false })
+  @ApiQuery({ name: 'cabin', required: false })
+  @ApiQuery({ name: 'cursor', required: false, description: 'id do último item da página anterior' })
+  @ApiQuery({ name: 'take', required: false, description: 'Itens por página (padrão 20, máx 100)' })
   async findAll(@Query() filter: FlightHistoryFilterDto) {
     return this.flightHistoryService.findAll(filter);
   }

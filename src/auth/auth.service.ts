@@ -17,26 +17,26 @@ export class AuthService {
     @Inject(JWT_CONSTANTS_TOKEN) private constants: JwtConstants
   ) {}  
 
-  async signup(data: CreateUserDto) {
+  async signup(data: CreateUserDto, userAgent?: string, ipAddress?: string) {
     const user = await this.usersService.create(data);
     const { accessToken, refreshToken } = await this.getTokens(user.id, user.email);
-    await this.usersService.updateToken(user.id, refreshToken);
+    await this.usersService.updateLoginMeta(user.id, refreshToken, userAgent, ipAddress);
     return { accessToken, refreshToken };
   }
 
-  async login(data: AuthDto) {
+  async login(data: AuthDto, userAgent?: string, ipAddress?: string) {
     const user = await this.usersService.findForAuth(data.email);
     if (!user) {
       throw new UnauthorizedException('Credenciais inválidas.');
     }
 
-      const passwordMatch = await bcrypt.compare(data.password, user.password);
-      if (!passwordMatch) {
-        throw new UnauthorizedException('Credenciais inválidas.');
-      }
+    const passwordMatch = await bcrypt.compare(data.password, user.password);
+    if (!passwordMatch) {
+      throw new UnauthorizedException('Credenciais inválidas.');
+    }
 
     const { accessToken, refreshToken } = await this.getTokens(user.id, user.email);
-    await this.usersService.updateToken(user.id, refreshToken);
+    await this.usersService.updateLoginMeta(user.id, refreshToken, userAgent, ipAddress);
     return { accessToken, refreshToken };
   }
 

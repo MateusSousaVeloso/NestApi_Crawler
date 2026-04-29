@@ -16,15 +16,29 @@ model User {
   createdAt        DateTime              @default(now()) @db.Timestamptz(6)
   updatedAt        DateTime              @default(now()) @updatedAt @db.Timestamptz(6)
   preferences      Json?
-  token            String?               @unique
+  token            String?
+  tokenIssuedAt    DateTime?             @db.Timestamptz(6)
+  tokenUserAgent   String?
+  tokenIpAddress   String?
   chat_sessions    chat_sessions[]
-  histories        History[]
-  tripInfo         TripInfo?
   user_api_keys    user_api_keys?
   routePreferences UserRoutePreference[]
   subscriptions    UserSubscription?
+  milhasMessages   milhas_message[]
 
   @@map("users")
+}
+
+model milhas_message {
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      ChatRole
+  content   String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([userId, createdAt])
+  @@map("milhas_messages")
 }
 
 model SubscriptionPlan {
@@ -42,24 +56,15 @@ model UserSubscription {
   payment_date DateTime           @default(now())
   end_date     DateTime
   planId       Int
-  userPhone    String             @unique @db.VarChar(20)
+  userId       String             @unique
   status       SubscriptionStatus @default(active)
   plan         SubscriptionPlan   @relation(fields: [planId], references: [id])
-  user         User               @relation(fields: [userPhone], references: [phone_number], onDelete: Cascade)
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([status, end_date])
   @@map("user_subscriptions")
 }
 
-model History {
-  id         String   @id @default(dbgenerated("gen_random_uuid()"))
-  session_id String
-  message    Json
-  createdAt  DateTime @default(now())
-  user       User     @relation(fields: [session_id], references: [phone_number], onDelete: Cascade)
-
-  @@index([session_id])
-  @@map("histories")
-}
 
 model UserRoutePreference {
   id              String         @id @default(dbgenerated("gen_random_uuid()"))
@@ -77,25 +82,10 @@ model UserRoutePreference {
   dateStart       DateTime?      @db.Date
   user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  @@index([userId, isActive])
   @@map("user_route_preferences")
 }
 
-model TripInfo {
-  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  origin        String?    @db.VarChar(10)
-  destination   String?    @db.VarChar(10)
-  departureDate DateTime?  @db.Date
-  createdAt     DateTime   @default(now()) @db.Timestamptz(6)
-  updatedAt     DateTime   @default(now()) @updatedAt @db.Timestamptz(6)
-  userPhone     String     @unique @db.VarChar(20)
-  tipoBusca     TipoBusca?
-  finalDate     DateTime?  @db.Date
-  CabinType     CabinType?
-  user          User       @relation(fields: [userPhone], references: [phone_number], onDelete: Cascade)
-
-  @@map("trip_info")
-}
 
 model FlightSearchResult {
   id               String               @id @default(dbgenerated("gen_random_uuid()"))
@@ -193,10 +183,6 @@ model user_api_keys {
   users           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-enum TipoBusca {
-  preco
-  custo_beneficio
-}
 
 enum CabinType {
   ANY

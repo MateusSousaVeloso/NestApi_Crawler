@@ -35,4 +35,13 @@ export class CreateUserDto {
   preferences: Record<string, any>;
 }
 
-export class UpdateUserDto extends PartialType(CreateUserDto) {}
+export class UpdateUserDto extends PartialType(CreateUserDto) {
+  @ApiProperty({
+    example: 'SenhaAtual-123!',
+    description: 'Senha atual — obrigatória ao alterar senha ou email.',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  currentPassword?: string;
+}

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../database/prisma.service';
-import { SearchService } from '../search/search.service';
+import { SmilesService } from '../search/crawlers/smiles.service';
 import { WhatsAppService } from './whatsapp.service';
 import { formatFlightsForDate } from './flight-formatter';
 import { AlertFrequency, SubscriptionStatus } from '../../prisma/generated/client';
@@ -33,7 +33,7 @@ export class NotificationSchedulerService {
  
   constructor(
     private readonly prisma: PrismaService,
-    private readonly searchService: SearchService,
+    private readonly smilesService: SmilesService,
     private readonly whatsappService: WhatsAppService,
   ) {}
  
@@ -150,7 +150,7 @@ export class NotificationSchedulerService {
     const destination = `${route.destinationCity} (${route.destinationIata})`;
  
     try {
-      const result = await this.searchService.searchSmiles({
+      const result = await this.smilesService.search({
         origin: route.originIata,
         destination: route.destinationIata,
         departureDate: firstDate,

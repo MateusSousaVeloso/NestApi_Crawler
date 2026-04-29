@@ -25,13 +25,13 @@ export class FlightSearchDto {
   @IsNotEmpty()
   destination: string;
 
-  @ApiProperty({ example: '2026-03-19', description: 'Data inicial de partida (YYYY-MM-DD)' })
+  @ApiProperty({ example: '2026-05-19', description: 'Data inicial de partida (YYYY-MM-DD)' })
   @IsDateString()
   @IsNotEmpty()
   departureDate: string;
 
   @ApiPropertyOptional({
-    example: '2026-03-21',
+    example: '2026-05-21',
     description: 'Data final de partida (YYYY-MM-DD) - opcional para pesquisar voo de um range de dias',
   })
   @IsDateString()

@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { CreateUserDto, UpdateUserDto } from './users.dto';
 import * as bcrypt from 'bcrypt';
@@ -48,6 +48,19 @@ export class UsersService {
       data: { token: hashedToken },
     });
   }
+
+  async updateLoginMeta(id: string, token: string, userAgent?: string, ipAddress?: string) {
+    const hashedToken = hashToken(token);
+    return this.prisma.user.update({
+      where: { id },
+      data: {
+        token: hashedToken,
+        tokenIssuedAt: new Date(),
+        tokenUserAgent: userAgent ?? null,
+        tokenIpAddress: ipAddress ?? null,
+      },
+    });
+  }
  
   async updatePreferences(id: string, preferences: Record<string, any>) {
     return this.prisma.user.update({
@@ -58,21 +71,33 @@ export class UsersService {
   }
 
   async update(id: string, data: UpdateUserDto) {
-    const userExists = await this.prisma.user.findUnique({ where: { id } });
+    const userExists = await this.prisma.user.findUnique({
+      where: { id },
+      select: { id: true, password: true },
+    });
     if (!userExists) throw new NotFoundException('Usuário não existe.');
 
-    if (data.password) {
-      data.password = await bcrypt.hash(data.password, 12);
+    if (data.password || data.email) {
+      if (!data.currentPassword) {
+        throw new UnauthorizedException('Senha atual obrigatória para alterar senha ou email.');
+      }
+      const match = await bcrypt.compare(data.currentPassword, userExists.password);
+      if (!match) throw new UnauthorizedException('Senha atual incorreta.');
     }
 
-    const updatedUser = await this.prisma.user.update({
+    const { currentPassword, ...updateData } = data;
+
+    if (updateData.password) {
+      updateData.password = await bcrypt.hash(updateData.password, 12);
+      // Invalida a sessão — usuário precisa fazer login novamente
+      await this.updateToken(id, null);
+    }
+
+    return this.prisma.user.update({
       where: { id },
-      data: {
-        ...data,
-      },
+      data: updateData,
       omit: { password: true, token: true },
     });
-    return updatedUser;
   }
 
   async delete(id: string) {

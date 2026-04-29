@@ -41,4 +41,14 @@ export class FlightHistoryFilterDto {
   @IsString()
   @IsOptional()
   cabin?: string;
+
+  @ApiPropertyOptional({ example: 'abc123', description: 'Cursor (id do último item) para paginação por keyset' })
+  @IsString()
+  @IsOptional()
+  cursor?: string;
+
+  @ApiPropertyOptional({ example: '20', description: 'Itens por página (padrão 20, máx 100)' })
+  @IsNumberString()
+  @IsOptional()
+  take?: string;
 }

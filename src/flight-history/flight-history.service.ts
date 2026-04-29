@@ -207,65 +207,45 @@ export class FlightHistoryService {
   }
 
   async findAll(filter: FlightHistoryFilterDto) {
+    const take = Math.min(filter.take ? parseInt(filter.take, 10) : 20, 100);
+    const cursor = filter.cursor;
+
     const where: any = {};
 
-    if (filter.origin) {
-      where.origin = filter.origin.toUpperCase();
-    }
-    if (filter.destination) {
-      where.destination = filter.destination.toUpperCase();
-    }
-    if (filter.provider) {
-      where.provider = filter.provider;
-    }
+    if (filter.origin) where.origin = filter.origin.toUpperCase();
+    if (filter.destination) where.destination = filter.destination.toUpperCase();
+    if (filter.provider) where.provider = filter.provider;
+
     if (filter.dateFrom || filter.dateTo) {
       where.flightDate = {};
-      if (filter.dateFrom) {
-        where.flightDate.gte = new Date(filter.dateFrom + 'T00:00:00');
-      }
-      if (filter.dateTo) {
-        where.flightDate.lte = new Date(filter.dateTo + 'T23:59:59');
-      }
+      if (filter.dateFrom) where.flightDate.gte = new Date(filter.dateFrom + 'T00:00:00');
+      if (filter.dateTo) where.flightDate.lte = new Date(filter.dateTo + 'T23:59:59');
     }
 
     if (filter.airline) {
-      where.details = {
-        some: {
-          airline: { contains: filter.airline, mode: 'insensitive' },
-        },
-      };
+      where.details = { some: { airline: { contains: filter.airline, mode: 'insensitive' } } };
     }
-
     if (filter.stops !== undefined && filter.stops !== null) {
-      const stopsFilter = Number(filter.stops);
-      where.details = {
-        ...where.details,
-        some: {
-          ...(where.details?.some || {}),
-          stops: stopsFilter,
-        },
-      };
+      where.details = { ...where.details, some: { ...(where.details?.some || {}), stops: Number(filter.stops) } };
     }
-
     if (filter.cabin) {
-      where.details = {
-        ...where.details,
-        some: {
-          ...(where.details?.some || {}),
-          cabin: { contains: filter.cabin, mode: 'insensitive' },
-        },
-      };
+      where.details = { ...where.details, some: { ...(where.details?.some || {}), cabin: { contains: filter.cabin, mode: 'insensitive' } } };
     }
 
-    return this.prisma.flightSearchResult.findMany({
+    const rows = await this.prisma.flightSearchResult.findMany({
+      take: take + 1,
+      skip: cursor ? 1 : 0,
+      cursor: cursor ? { id: cursor } : undefined,
       where,
-      orderBy: [{ flightDate: 'asc' }, { searchedAt: 'desc' }],
-      include: {
-        _count: {
-          select: { details: true },
-        },
-      },
+      orderBy: [{ searchedAt: 'desc' }, { id: 'asc' }],
+      include: { _count: { select: { details: true } } },
     });
+
+    const hasMore = rows.length > take;
+    const data = hasMore ? rows.slice(0, take) : rows;
+    const nextCursor = hasMore ? (data.at(-1)?.id ?? null) : null;
+
+    return { data, nextCursor, hasMore };
   }
 
   async findOne(id: string) {

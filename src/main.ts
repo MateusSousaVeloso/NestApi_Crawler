@@ -2,15 +2,18 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
+import compression from 'compression';
 import { ValidationPipe } from '@nestjs/common';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import type { Request, Response, NextFunction } from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.use(cookieParser());
   app.use(helmet());
+  app.use(compression());
 
   const frontendUrl = process.env.FRONTEND_URL;
   if (!frontendUrl) {
@@ -18,7 +21,19 @@ async function bootstrap() {
   }
   app.enableCors({ origin: frontendUrl, credentials: true });
 
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  // CSRF: rejeita requests mutantes originados de domínios diferentes do frontend.
+  // Requests sem header Origin (curl, Postman, server-to-server) são permitidos.
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+    const origin = req.headers.origin;
+    if (!origin) return next();
+    if (!origin.startsWith(frontendUrl)) {
+      return res.status(403).json({ statusCode: 403, message: 'Origem não autorizada.', error: 'Forbidden' });
+    }
+    next();
+  });
+
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }));
   app.useGlobalFilters(new AllExceptionsFilter(), new PrismaExceptionFilter());
 
   const config = new DocumentBuilder()
