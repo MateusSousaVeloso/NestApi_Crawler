@@ -14,8 +14,8 @@ export class RoutePreferencesService {
           HttpStatus.BAD_REQUEST,
         );
       }
-      const start = new Date(dateStart + 'T00:00:00');
-      const end = new Date(dateEnd + 'T00:00:00');
+      const start = new Date(dateStart + 'T00:00:00Z');
+      const end = new Date(dateEnd + 'T00:00:00Z');
       const diffDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
 
       if (diffDays < 0) {
@@ -52,8 +52,8 @@ export class RoutePreferencesService {
     return this.prisma.userRoutePreference.create({
       data: {
         ...rest,
-        dateStart: dateStart ? new Date(dateStart) : null,
-        dateEnd: dateEnd ? new Date(dateEnd) : null,
+        dateStart: dateStart ? new Date(dateStart + 'T00:00:00Z') : null,
+        dateEnd: dateEnd ? new Date(dateEnd + 'T00:00:00Z') : null,
         userId,
       },
     });
@@ -83,8 +83,8 @@ export class RoutePreferencesService {
       where: { id },
       data: {
         ...rest,
-        ...(dateStart !== undefined && { dateStart: dateStart ? new Date(dateStart) : null }),
-        ...(dateEnd !== undefined && { dateEnd: dateEnd ? new Date(dateEnd) : null }),
+        ...(dateStart !== undefined && { dateStart: dateStart ? new Date(dateStart + 'T00:00:00Z') : null }),
+        ...(dateEnd !== undefined && { dateEnd: dateEnd ? new Date(dateEnd + 'T00:00:00Z') : null }),
       },
     });
   }

@@ -23,11 +23,20 @@ async function bootstrap() {
 
   // CSRF: rejeita requests mutantes originados de domínios diferentes do frontend.
   // Requests sem header Origin (curl, Postman, server-to-server) são permitidos.
+  // Comparação é feita por URL.origin (scheme + host + port) para evitar bypass via prefix matching
+  // (ex: app.com.attacker.com passaria com startsWith).
+  const allowedOrigin = new URL(frontendUrl).origin;
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
     const origin = req.headers.origin;
     if (!origin) return next();
-    if (!origin.startsWith(frontendUrl)) {
+    let normalizedOrigin: string;
+    try {
+      normalizedOrigin = new URL(origin).origin;
+    } catch {
+      return res.status(403).json({ statusCode: 403, message: 'Origem inválida.', error: 'Forbidden' });
+    }
+    if (normalizedOrigin !== allowedOrigin) {
       return res.status(403).json({ statusCode: 403, message: 'Origem não autorizada.', error: 'Forbidden' });
     }
     next();

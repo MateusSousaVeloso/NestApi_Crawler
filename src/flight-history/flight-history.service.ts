@@ -53,9 +53,15 @@ export class FlightHistoryService {
     return '';
   }
 
+  private extractFlightDates(f: any): { depDateStr: string | null; arrDateStr: string | null } {
+    return {
+      depDateStr: f.departure?.date || null,
+      arrDateStr: f.arrival?.date || null,
+    };
+  }
+
   private buildFlightBase(f: any, origin: string, destination: string) {
-    const depDateStr = f.departure?.date || null;
-    const arrDateStr = f.arrival?.date || null;
+    const { depDateStr, arrDateStr } = this.extractFlightDates(f);
     const depTime = this.extractTime(depDateStr);
     const dayOffset = this.getDayOffset(depDateStr, arrDateStr);
     const arrTime = this.extractTime(arrDateStr) + dayOffset;
@@ -87,26 +93,24 @@ export class FlightHistoryService {
       price: f.price ? Number(f.price) : null,
       currency: f.currency || null,
       route,
-      depDateStr,
-      arrDateStr,
     };
   }
 
   private buildMinJson(f: any, origin: string, destination: string): object | undefined {
     if (!f) return undefined;
-    const { depDateStr, arrDateStr, ...base } = this.buildFlightBase(f, origin, destination);
+    const { depDateStr, arrDateStr } = this.extractFlightDates(f);
     return {
-      ...base,
-      departureDate: depDateStr || null,
-      arrivalDate: arrDateStr || null,
+      ...this.buildFlightBase(f, origin, destination),
+      departureDate: depDateStr,
+      arrivalDate: arrDateStr,
     };
   }
 
   private buildDetailData(f: any, origin: string, destination: string) {
-    const { depDateStr, arrDateStr, ...base } = this.buildFlightBase(f, origin, destination);
+    const { depDateStr, arrDateStr } = this.extractFlightDates(f);
     return {
       uid: f.uid || null,
-      ...base,
+      ...this.buildFlightBase(f, origin, destination),
       departureDate: depDateStr ? new Date(depDateStr) : null,
       arrivalDate: arrDateStr ? new Date(arrDateStr) : null,
       legsJson: f.legs || null,
@@ -162,48 +166,44 @@ export class FlightHistoryService {
       firstMinJson: this.buildMinJson(firstMinFlight, origin, destination),
     };
 
-    try {
-      const result = await this.prisma.$transaction(async (tx) => {
-        await tx.flightSearchDetail.deleteMany({
-          where: {
-            searchResult: {
-              origin: normalizedOrigin,
-              destination: normalizedDest,
-              flightDate: parsedDate,
-              provider,
-            },
-          },
-        });
-
-        return tx.flightSearchResult.upsert({
-          where: {
-            origin_destination_flightDate_provider: {
-              origin: normalizedOrigin,
-              destination: normalizedDest,
-              flightDate: parsedDate,
-              provider,
-            },
-          },
-          update: {
-            searchedAt: new Date(),
-            ...summaryData,
-            details: { create: detailsData },
-          },
-          create: {
-            flightDate: parsedDate,
+    // Falha de persistência não bloqueia a resposta da busca: o caller (ex: SmilesService)
+    // recebe o erro via .catch() e segue retornando os voos.
+    return this.prisma.$transaction(async (tx) => {
+      await tx.flightSearchDetail.deleteMany({
+        where: {
+          searchResult: {
             origin: normalizedOrigin,
             destination: normalizedDest,
+            flightDate: parsedDate,
             provider,
-            ...summaryData,
-            details: { create: detailsData },
           },
-        });
+        },
       });
 
-      return result;
-    } catch (error: any) {
-      this.logger.error(`Erro ao salvar historico de voos: ${error.message}`);
-    }
+      return tx.flightSearchResult.upsert({
+        where: {
+          origin_destination_flightDate_provider: {
+            origin: normalizedOrigin,
+            destination: normalizedDest,
+            flightDate: parsedDate,
+            provider,
+          },
+        },
+        update: {
+          searchedAt: new Date(),
+          ...summaryData,
+          details: { create: detailsData },
+        },
+        create: {
+          flightDate: parsedDate,
+          origin: normalizedOrigin,
+          destination: normalizedDest,
+          provider,
+          ...summaryData,
+          details: { create: detailsData },
+        },
+      });
+    });
   }
 
   async findAll(filter: FlightHistoryFilterDto) {
@@ -222,15 +222,13 @@ export class FlightHistoryService {
       if (filter.dateTo) where.flightDate.lte = new Date(filter.dateTo + 'T23:59:59');
     }
 
-    if (filter.airline) {
-      where.details = { some: { airline: { contains: filter.airline, mode: 'insensitive' } } };
-    }
-    if (filter.stops !== undefined && filter.stops !== null) {
-      where.details = { ...where.details, some: { ...(where.details?.some || {}), stops: Number(filter.stops) } };
-    }
-    if (filter.cabin) {
-      where.details = { ...where.details, some: { ...(where.details?.some || {}), cabin: { contains: filter.cabin, mode: 'insensitive' } } };
-    }
+    // Filtros sobre details acumulados em um único `some`: existe ao menos um voo
+    // que satisfaz todos os critérios simultaneamente.
+    const detailsSome: Record<string, any> = {};
+    if (filter.airline) detailsSome.airline = { contains: filter.airline, mode: 'insensitive' };
+    if (filter.stops !== undefined && filter.stops !== null) detailsSome.stops = Number(filter.stops);
+    if (filter.cabin) detailsSome.cabin = { contains: filter.cabin, mode: 'insensitive' };
+    if (Object.keys(detailsSome).length > 0) where.details = { some: detailsSome };
 
     const rows = await this.prisma.flightSearchResult.findMany({
       take: take + 1,

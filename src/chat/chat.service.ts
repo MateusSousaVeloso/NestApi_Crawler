@@ -1,4 +1,4 @@
-import { BadGatewayException, Injectable, Logger } from '@nestjs/common';
+import { BadGatewayException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { ChatRole } from '../../prisma/generated/client';
@@ -39,6 +39,7 @@ export class ChatService {
       where: { id: userId },
       select: { phone_number: true, name: true },
     });
+    if (!user) throw new NotFoundException('Usuário não existe.');
 
     const webhookUrl = this.config.get<string>('N8N_WEBHOOK_URL');
     if (!webhookUrl) throw new BadGatewayException('Webhook N8N não configurado.');
@@ -46,9 +47,9 @@ export class ChatService {
     let botResponse: string;
     try {
       const response = await axios.post(webhookUrl, {
-        phone: user!.phone_number,
+        phone: user.phone_number,
         text: { message: content },
-        senderName: user!.name,
+        senderName: user.name,
       });
       const d = response.data;
       botResponse = typeof d === 'string' ? d : d?.output || d?.message || JSON.stringify(d);

@@ -22,7 +22,7 @@ interface RouteWithUser {
  
 const CABIN_MAP: Record<string, CabinClass> = {
   ANY: CabinClass.ALL,
-  ECONOMY: CabinClass.ECONOMIC,
+  ECONOMIC: CabinClass.ECONOMIC,
   BUSINESS: CabinClass.BUSINESS,
   FIRST: CabinClass.FIRST,
 };

@@ -38,6 +38,7 @@ export class WhatsAppService {
       );
     } catch (error: any) {
       this.logger.error(`Erro ao enviar mensagem para ${phone}: ${error.message}`);
+      throw error;
     }
   }
 }

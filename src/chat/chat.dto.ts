@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumberString, IsArray, ValidateNested } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumberString, IsArray, ValidateNested, IsIn } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
@@ -11,9 +11,8 @@ export class SendMessageDto {
 
 export class ImportMessageDto {
   @ApiProperty({ example: 'user', enum: ['user', 'assistant'] })
-  @IsString()
-  @IsNotEmpty()
-  role: string;
+  @IsIn(['user', 'assistant'])
+  role: 'user' | 'assistant';
 
   @ApiProperty({ example: 'Olá, como posso te ajudar?' })
   @IsString()
