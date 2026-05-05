@@ -10,6 +10,10 @@ import {
   listCookieNames,
   handleCuimpError,
 } from './crawlers.utils';
+import { chromium } from 'playwright-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+// Adiciona o plugin stealth
+chromium.use(StealthPlugin());
 
 const AKAMAI_SENSOR_URL =
   'https://www.voeazul.com.br/1dTvmnOv4/8SdY/S3bsA/tOu1cDzEhac1hS1pJ9/GRsXSw/LT9D/DGx5DAoC';
@@ -279,58 +283,58 @@ export class AzulService {
     }
   }
 
-  /** PLACEHOLDER - sensor_data via Firefox headless para resolver Akamai */
+  /** PLACEHOLDER - sensor_data via Chromium headless com stealth para resolver Akamai */
   private async generateSensorData(refererUrl: string): Promise<string> {
-    this.logger.log('[Azul] Iniciando Firefox headless para resolver Akamai...');
+    this.logger.log('[Azul] Iniciando Chromium com stealth para resolver Akamai...');
 
-    const browser = await firefox.launch({
-      headless: true,
-      firefoxUserPrefs: {
-        'dom.webdriver.enabled': false,
-        useAutomationExtension: false,
-        'media.navigator.enabled': true,
-        'media.peerconnection.enabled': true,
-        'datareporting.healthreport.uploadEnabled': false,
-        'datareporting.policy.dataSubmissionEnabled': false,
-        'toolkit.telemetry.enabled': false,
-        'toolkit.telemetry.unified': false,
-        'webgl.disabled': false,
-        'webgl.enable-webgl2': true,
-        'browser.safebrowsing.enabled': false,
-        'browser.safebrowsing.malware.enabled': false,
-        'media.navigator.hardware_video_decoding.force-enabled': true,
-      },
-      args: ['--no-sandbox', '--disable-blink-features=AutomationControlled'],
+    const browser = await chromium.launch({
+      headless: false,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-blink-features=AutomationControlled',
+        '--disable-infobars',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu',
+        '--disable-features=IsolateOrigins,site-per-process',
+        '--disable-site-isolation-trials',
+        '--disable-web-security',
+        '--disable-features=BlockInsecurePrivateNetworkRequests',
+      ],
     });
 
     try {
       const context = await browser.newContext({
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0',
+        userAgent: UA,
         locale: 'pt-BR',
         timezoneId: 'America/Sao_Paulo',
-        viewport: { width: 1366, height: 768 },
+        viewport: { width: 1920, height: 1080 },
+        geolocation: { latitude: -23.5505, longitude: -46.6333 },
         permissions: ['geolocation'],
         extraHTTPHeaders: { 'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7' },
       });
 
-      await context.setGeolocation({ latitude: -23.5505, longitude: -46.6333 });
-
       const page = await context.newPage();
 
+      // script de evasão adicional (além do stealth)
       await page.addInitScript(() => {
         Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+        // sobrescreve plugins para parecer um navegador real
         Object.defineProperty(navigator, 'plugins', {
           get: () => {
             const plugins = [
-              { name: 'PDF Viewer', filename: 'internal-pdf-viewer' },
-              { name: 'Chrome PDF Viewer', filename: 'internal-pdf-viewer' },
-              { name: 'Chromium PDF Viewer', filename: 'internal-pdf-viewer' },
+              { name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer', description: 'Portable Document Format' },
+              { name: 'Chrome PDF Viewer', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai', description: '' },
+              { name: 'Native Client', filename: 'internal-nacl-plugin', description: '' },
             ];
-            plugins['length'] = plugins.length;
-            return plugins;
+            return Object.assign(plugins, { length: plugins.length,});
           },
         });
         Object.defineProperty(navigator, 'languages', { get: () => ['pt-BR', 'pt', 'en-US', 'en'] });
+        // sobrescreve hardware
         Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 8 });
         Object.defineProperty(navigator, 'deviceMemory', { get: () => 8 });
         // @ts-ignore
@@ -339,19 +343,37 @@ export class AzulService {
         delete window.__pw_manual;
         // @ts-ignore
         delete window._phantom;
-        Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 0 });
-        Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
-        Object.defineProperty(navigator, 'vendor', { get: () => 'Google Inc.' });
-        Object.defineProperty(screen, 'width', { get: () => 1366 });
-        Object.defineProperty(screen, 'height', { get: () => 768 });
-        Object.defineProperty(screen, 'availWidth', { get: () => 1366 });
-        Object.defineProperty(screen, 'availHeight', { get: () => 728 });
-        Object.defineProperty(screen, 'colorDepth', { get: () => 24 });
-        Object.defineProperty(screen, 'pixelDepth', { get: () => 24 });
+        
+        // Sobrescreve permissions
+        const originalQuery = window.navigator.permissions.query;
+        window.navigator.permissions.query = (parameters: any) =>
+          parameters.name === 'notifications'
+            ? Promise.resolve({ state: Notification.permission } as PermissionStatus)
+            : originalQuery(parameters);
+
+        // Sobrescreve chrome
+        (window as any).chrome = {
+          runtime: {},
+          loadTimes: () => {},
+          csi: () => {},
+          app: {},
+        };
+
+        // Sobrescreve conexão
+        Object.defineProperty(navigator, 'connection', {
+          get: () => ({
+            effectiveType: '4g',
+            rtt: 50,
+            downlink: 10,
+            saveData: false,
+          }),
+        });
       });
 
       let capturedSensor: string | null = null;
+      let capturedSecCptSolution: string | null = null;
 
+      // intercepta requisição POST para o endpoint do sensor da Akamai e captura o body (sensor_data)
       page.on('request', (req) => {
         if (req.method() === 'POST') {
           this.logger.log(`[Azul] POST interceptado: ${req.url()}`);
@@ -359,6 +381,11 @@ export class AzulService {
             const postData = req.postData();
             this.logger.log(`[Azul] POST body (primeiros 100 chars): ${postData?.substring(0, 100)}`);
             const body = JSON.parse(postData ?? '{}');
+            // tenta capturar a solução sec-cpt
+            if (body.body && body.body.includes('cpr/solution')) {
+              capturedSecCptSolution = body.body;
+              this.logger.log('[Azul] sec-cpt solution interceptada com sucesso.');
+            }
             if (body.sensor_data) {
               capturedSensor = body.sensor_data;
               this.logger.log('[Azul] sensor_data interceptado com sucesso.');
@@ -385,14 +412,14 @@ export class AzulService {
         await page.waitForTimeout(10000);
       }
 
-      this.logger.log(`[Azul] Estado final — sensor capturado: ${!!capturedSensor}`);
+      this.logger.log(`[Azul] Estado final — sensor capturado: ${!!capturedSensor}, SEC-CPT: ${!!capturedSecCptSolution}`);
 
       if (!capturedSensor) throw new Error('[Azul] Não foi possível interceptar o sensor_data.');
 
       return capturedSensor;
     } finally {
       await browser.close();
-      this.logger.log('[Azul] Firefox headless fechado.');
+      this.logger.log('[Azul] Chromium fechado.');
     }
   }
 
