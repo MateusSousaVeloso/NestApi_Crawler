@@ -25,6 +25,7 @@ model User {
   routePreferences UserRoutePreference[]
   subscriptions    UserSubscription?
   milhasMessages   milhas_message[]
+  tripInfo         TripInfo?
 
   @@map("users")
 }
@@ -39,6 +40,27 @@ model milhas_message {
 
   @@index([userId, createdAt])
   @@map("milhas_messages")
+}
+
+model TripInfo {
+  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  origin        String?    @db.VarChar(10)
+  destination   String?    @db.VarChar(10)
+  departureDate DateTime?  @db.Date
+  createdAt     DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime   @default(now()) @updatedAt @db.Timestamptz(6)
+  userPhone     String     @unique @db.VarChar(20)
+  tipoBusca     TipoBusca?
+  finalDate     DateTime?  @db.Date
+  CabinType     CabinType?
+  user          User       @relation(fields: [userPhone], references: [phone_number], onDelete: Cascade)
+
+  @@map("trip_info")
+}
+
+enum TipoBusca {
+  preco
+  custo_beneficio
 }
 
 model SubscriptionPlan {
