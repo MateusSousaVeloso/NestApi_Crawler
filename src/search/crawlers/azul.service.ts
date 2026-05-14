@@ -1,6 +1,5 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { request } from 'cuimp';
-import { firefox } from 'playwright';
 import { AzulSearchDto } from '../search.dto';
 import { generateDateRange, runBatchWithFallback } from '../utils/dateUtils';
 import {
@@ -22,7 +21,7 @@ const AKAMAI_SCRIPT_URL =
 const SEC_CPR_PARAMS_URL = 'https://www.voeazul.com.br/_sec/cpr/params';
 const PAGE_URL = 'https://www.voeazul.com.br/br/pt/home/selecao-voo';
 const UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36';
+  'Mozilla/5.0 (globalThiss NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36';
 const SEC_CH_UA = '"Not:A-Brand";v="99", "Google Chrome";v="145", "Chromium";v="145"';
 const SEC_CPT_POST_URL =
   'https://www.voeazul.com.br/1dTvmnOv4/8SdY/S3bsA/cku1cDzEhac1/PiwcSw/Sx5j/JDlwSy4PAg';
@@ -86,7 +85,7 @@ export class AzulService {
           Priority: 'u=0, i',
           'Sec-Ch-Ua': SEC_CH_UA,
           'Sec-Ch-Ua-Mobile': '?0',
-          'Sec-Ch-Ua-Platform': '"Windows"',
+          'Sec-Ch-Ua-Platform': '"globalThiss"',
           'Sec-Fetch-Dest': 'document',
           'Sec-Fetch-Mode': 'navigate',
           'Sec-Fetch-Site': 'same-origin',
@@ -120,7 +119,7 @@ export class AzulService {
           Referer: referer,
           'Sec-Ch-Ua': SEC_CH_UA,
           'Sec-Ch-Ua-Mobile': '?0',
-          'Sec-Ch-Ua-Platform': '"Windows"',
+          'Sec-Ch-Ua-Platform': '"globalThiss"',
           'Sec-Fetch-Dest': 'script',
           'Sec-Fetch-Mode': 'no-cors',
           'Sec-Fetch-Site': 'same-origin',
@@ -132,9 +131,7 @@ export class AzulService {
       const cookies = mergeCookies(currentCookies, r);
       const scriptBody: string =
         typeof r.data === 'string' ? r.data : JSON.stringify(r.data);
-      const versionMatch = scriptBody.match(
-        /[?&]v=([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i,
-      );
+      const versionMatch = new RegExp(/[?&]v=([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i).exec(scriptBody);
       const secCptVersion = versionMatch?.[1] ?? '88f7571c-854e-f5b7-3b10-e20ec2440215';
       this.logger.log(`[Azul] Step 2 OK. Cookies: ${listCookieNames(cookies)}`);
       return { cookies, secCptVersion };
@@ -158,7 +155,7 @@ export class AzulService {
           Referer: referer,
           'Sec-Ch-Ua': SEC_CH_UA,
           'Sec-Ch-Ua-Mobile': '?0',
-          'Sec-Ch-Ua-Platform': '"Windows"',
+          'Sec-Ch-Ua-Platform': '"globalThiss"',
           'Sec-Fetch-Dest': 'empty',
           'Sec-Fetch-Mode': 'cors',
           'Sec-Fetch-Site': 'same-origin',
@@ -188,7 +185,7 @@ export class AzulService {
         url: secCptFullUrl,
         method: 'GET',
         headers: {
-          'Sec-Ch-Ua-Platform': '"Windows"',
+          'Sec-Ch-Ua-Platform': '"globalThiss"',
           Referer: referer,
           'User-Agent': UA,
           'Sec-Ch-Ua': SEC_CH_UA,
@@ -217,7 +214,7 @@ export class AzulService {
           Referer: referer,
           'Sec-Ch-Ua': SEC_CH_UA,
           'Sec-Ch-Ua-Mobile': '?0',
-          'Sec-Ch-Ua-Platform': '"Windows"',
+          'Sec-Ch-Ua-Platform': '"globalThiss"',
           'Sec-Fetch-Dest': 'empty',
           'Sec-Fetch-Mode': 'cors',
           'Sec-Fetch-Site': 'same-origin',
@@ -264,7 +261,7 @@ export class AzulService {
           Referer: referer,
           'Sec-Ch-Ua': SEC_CH_UA,
           'Sec-Ch-Ua-Mobile': '?0',
-          'Sec-Ch-Ua-Platform': '"Windows"',
+          'Sec-Ch-Ua-Platform': '"globalThiss"',
           'Sec-Fetch-Dest': 'empty',
           'Sec-Fetch-Mode': 'cors',
           'Sec-Fetch-Site': 'same-origin',
@@ -338,21 +335,21 @@ export class AzulService {
         Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 8 });
         Object.defineProperty(navigator, 'deviceMemory', { get: () => 8 });
         // @ts-ignore
-        delete window.__playwright;
+        delete globalThis.__playwright;
         // @ts-ignore
-        delete window.__pw_manual;
+        delete globalThis.__pw_manual;
         // @ts-ignore
-        delete window._phantom;
+        delete globalThis._phantom;
         
         // Sobrescreve permissions
-        const originalQuery = window.navigator.permissions.query;
-        window.navigator.permissions.query = (parameters: any) =>
+        const originalQuery = globalThis.navigator.permissions.query;
+        globalThis.navigator.permissions.query = (parameters: any) =>
           parameters.name === 'notifications'
             ? Promise.resolve({ state: Notification.permission } as PermissionStatus)
             : originalQuery(parameters);
 
         // Sobrescreve chrome
-        (window as any).chrome = {
+        (globalThis as any).chrome = {
           runtime: {},
           loadTimes: () => {},
           csi: () => {},
@@ -382,7 +379,7 @@ export class AzulService {
             this.logger.log(`[Azul] POST body (primeiros 100 chars): ${postData?.substring(0, 100)}`);
             const body = JSON.parse(postData ?? '{}');
             // tenta capturar a solução sec-cpt
-            if (body.body && body.body.includes('cpr/solution')) {
+            if (body.body?.includes('cpr/solution')) {
               capturedSecCptSolution = body.body;
               this.logger.log('[Azul] sec-cpt solution interceptada com sucesso.');
             }
@@ -445,7 +442,7 @@ export class AzulService {
           Referer: 'https://www.voeazul.com.br/',
           'Sec-Ch-Ua': SEC_CH_UA,
           'Sec-Ch-Ua-Mobile': '?0',
-          'Sec-Ch-Ua-Platform': '"Windows"',
+          'Sec-Ch-Ua-Platform': '"globalThiss"',
           'Sec-Fetch-Dest': 'empty',
           'Sec-Fetch-Mode': 'cors',
           'Sec-Fetch-Site': 'same-site',
@@ -494,7 +491,7 @@ export class AzulService {
         Referer: 'https://www.voeazul.com.br/',
         'Sec-Ch-Ua': SEC_CH_UA,
         'Sec-Ch-Ua-Mobile': '?0',
-        'Sec-Ch-Ua-Platform': '"Windows"',
+        'Sec-Ch-Ua-Platform': '"globalThiss"',
         'Sec-Fetch-Dest': 'empty',
         'Sec-Fetch-Mode': 'cors',
         'Sec-Fetch-Site': 'same-site',
@@ -514,8 +511,8 @@ export class AzulService {
         });
         currentCookies = mergeCookies(currentCookies, dr);
         this.logger.log('[Azul] Step 8b OK.');
-      } catch (de: any) {
-        this.logger.warn(`[Azul] DELETE bookings: ${de.status || 'erro'} (ignorando)`);
+      } catch (error_: any) {
+        this.logger.warn(`[Azul] DELETE bookings: ${error_.status || 'erro'} (ignorando)`);
       }
 
       this.logger.log(`[Azul] Step 8c: POST SEC-CPT solution para ${dateString}...`);
@@ -532,7 +529,7 @@ export class AzulService {
             Referer: referer,
             'Sec-Ch-Ua': SEC_CH_UA,
             'Sec-Ch-Ua-Mobile': '?0',
-            'Sec-Ch-Ua-Platform': '"Windows"',
+            'Sec-Ch-Ua-Platform': '"globalThiss"',
             'Sec-Fetch-Dest': 'empty',
             'Sec-Fetch-Mode': 'cors',
             'Sec-Fetch-Site': 'same-origin',
@@ -544,8 +541,8 @@ export class AzulService {
         });
         currentCookies = mergeCookies(currentCookies, sc);
         this.logger.log(`[Azul] Step 8c OK. Status: ${sc.status}`);
-      } catch (se: any) {
-        this.logger.warn(`[Azul] SEC-CPT solution: ${se.status || 'erro'} (ignorando)`);
+      } catch (error_: any) {
+        this.logger.warn(`[Azul] SEC-CPT solution: ${error_.status || 'erro'} (ignorando)`);
       }
 
       this.logger.log(`[Azul] Step 8d: POST availability para ${dateString}...`);
