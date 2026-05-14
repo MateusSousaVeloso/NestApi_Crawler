@@ -1,35 +1,11 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumberString, IsArray, ValidateNested, IsIn } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumberString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
 
 export class SendMessageDto {
   @ApiProperty({ example: 'Quero viajar de GRU para MIA', description: 'Mensagem do usuário' })
   @IsString()
   @IsNotEmpty()
   content: string;
-}
-
-export class ImportMessageDto {
-  @ApiProperty({ example: 'user', enum: ['user', 'assistant'] })
-  @IsIn(['user', 'assistant'])
-  role: 'user' | 'assistant';
-
-  @ApiProperty({ example: 'Olá, como posso te ajudar?' })
-  @IsString()
-  @IsNotEmpty()
-  content: string;
-
-  @ApiPropertyOptional({ example: 1700000000000, description: 'Timestamp em ms' })
-  @IsOptional()
-  timestamp?: number;
-}
-
-export class ImportMessagesDto {
-  @ApiProperty({ type: [ImportMessageDto] })
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => ImportMessageDto)
-  messages: ImportMessageDto[];
 }
 
 export class GetMessagesDto {

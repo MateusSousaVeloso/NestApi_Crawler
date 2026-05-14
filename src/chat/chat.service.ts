@@ -3,7 +3,7 @@ import { PrismaService } from '../database/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { ChatRole } from '../../prisma/generated/client';
 import axios from 'axios';
-import { GetMessagesDto, ImportMessageDto } from './chat.dto';
+import { GetMessagesDto } from './chat.dto';
 
 @Injectable()
 export class ChatService {
@@ -15,7 +15,7 @@ export class ChatService {
   ) {}
 
   async getMessages(userId: string, dto: GetMessagesDto) {
-    const take = Math.min(dto.take ? parseInt(dto.take, 10) : 50, 100);
+    const take = Math.min(dto.take ? Number.parseInt(dto.take, 10) : 50, 100);
     const cursor = dto.cursor;
 
     const rows = await this.prisma.milhas_message.findMany({
@@ -31,7 +31,7 @@ export class ChatService {
     const data = hasMore ? rows.slice(0, take) : rows;
     const nextCursor = hasMore ? (data.at(-1)?.id ?? null) : null;
 
-    return { data: data.reverse(), nextCursor, hasMore };
+    return { data: data.toReversed(), nextCursor, hasMore };
   }
 
   async sendMessage(userId: string, content: string) {
@@ -68,22 +68,5 @@ export class ChatService {
 
   async clearMessages(userId: string) {
     await this.prisma.milhas_message.deleteMany({ where: { userId } });
-  }
-
-  async importMessages(userId: string, messages: ImportMessageDto[]) {
-    const valid = messages.filter((m) => m.role === 'user' || m.role === 'assistant');
-    if (valid.length === 0) return;
-
-    const existing = await this.prisma.milhas_message.count({ where: { userId } });
-    if (existing > 0) return;
-
-    await this.prisma.milhas_message.createMany({
-      data: valid.map((m) => ({
-        userId,
-        role: m.role === 'user' ? ChatRole.user : ChatRole.assistant,
-        content: m.content,
-        createdAt: m.timestamp ? new Date(m.timestamp) : new Date(),
-      })),
-    });
   }
 }

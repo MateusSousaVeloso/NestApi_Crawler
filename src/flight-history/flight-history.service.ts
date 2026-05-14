@@ -6,7 +6,7 @@ import { FlightHistoryFilterDto } from './flight-history.dto';
 export class FlightHistoryService {
   private readonly logger = new Logger(FlightHistoryService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   private buildRoute(f: any, origin: string, destination: string): string {
     if (!f.legs || f.legs.length === 0) {
@@ -24,7 +24,7 @@ export class FlightHistoryService {
     if (airports.length === 0 || airports[0] !== (f.departure?.airport || origin)) {
       airports.unshift(f.departure?.airport || origin);
     }
-    const lastAirport = airports[airports.length - 1];
+    const lastAirport = airports.at(-1);
     if (lastAirport !== (f.arrival?.airport || destination)) {
       airports.push(f.arrival?.airport || destination);
     }
@@ -35,7 +35,7 @@ export class FlightHistoryService {
   private extractTime(dateStr: string | null | undefined): string {
     if (!dateStr) return '00:00';
     const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return '00:00';
+    if (Number.isNaN(d.getTime())) return '00:00';
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   }
 
@@ -43,7 +43,7 @@ export class FlightHistoryService {
     if (!depStr || !arrStr) return '';
     const dep = new Date(depStr);
     const arr = new Date(arrStr);
-    if (isNaN(dep.getTime()) || isNaN(arr.getTime())) return '';
+    if (Number.isNaN(dep.getTime()) || Number.isNaN(arr.getTime())) return '';
 
     const depDay = new Date(dep.getFullYear(), dep.getMonth(), dep.getDate());
     const arrDay = new Date(arr.getFullYear(), arr.getMonth(), arr.getDate());
@@ -74,7 +74,7 @@ export class FlightHistoryService {
     }
 
     const cabinLetter = (f.cabin || 'Y').charAt(0).toUpperCase();
-    const cabinClass = f.availableSeats != null ? `${cabinLetter}${f.availableSeats}` : null;
+    const cabinClass = f.availableSeats == null ? null : `${cabinLetter}${f.availableSeats}`;
 
     return {
       flightCode,
@@ -113,8 +113,22 @@ export class FlightHistoryService {
       ...this.buildFlightBase(f, origin, destination),
       departureDate: depDateStr ? new Date(depDateStr) : null,
       arrivalDate: arrDateStr ? new Date(arrDateStr) : null,
-      legsJson: f.legs || null,
+      legsJson: f.legs || undefined,
     };
+  }
+
+  private findCabinMinimals(flights: any[]) {
+    const cabins = { ECONOMY: { min: null as number | null, flight: null as any }, PREMIUM: { min: null as number | null, flight: null as any }, BUSINESS: { min: null as number | null, flight: null as any }, FIRST: { min: null as number | null, flight: null as any } };
+    for (const f of flights) {
+      const cost = f.miles || f.price || 0;
+      if (cost <= 0) continue;
+      const cabin = (f.cabin === 'FIRST' || f.cabin === 'BUSINESS' || f.cabin === 'PREMIUM') ? f.cabin : 'ECONOMY';
+      if (cabins[cabin].min === null || cost < cabins[cabin].min) {
+        cabins[cabin].min = cost;
+        cabins[cabin].flight = f;
+      }
+    }
+    return cabins;
   }
 
   async saveSearchResults(
@@ -126,29 +140,7 @@ export class FlightHistoryService {
   ) {
     if (!flights || flights.length === 0) return;
 
-    let economyMin: number | null = null;
-    let premiumMin: number | null = null;
-    let businessMin: number | null = null;
-    let firstMin: number | null = null;
-    let economyMinFlight: any = null;
-    let premiumMinFlight: any = null;
-    let businessMinFlight: any = null;
-    let firstMinFlight: any = null;
-
-    for (const f of flights) {
-      const cost = f.miles || f.price || 0;
-      if (cost <= 0) continue;
-
-      if (f.cabin === 'FIRST') {
-        if (firstMin === null || cost < firstMin) { firstMin = cost; firstMinFlight = f; }
-      } else if (f.cabin === 'BUSINESS') {
-        if (businessMin === null || cost < businessMin) { businessMin = cost; businessMinFlight = f; }
-      } else if (f.cabin === 'PREMIUM') {
-        if (premiumMin === null || cost < premiumMin) { premiumMin = cost; premiumMinFlight = f; }
-      } else {
-        if (economyMin === null || cost < economyMin) { economyMin = cost; economyMinFlight = f; }
-      }
-    }
+    const { ECONOMY: economyData, PREMIUM: premiumData, BUSINESS: businessData, FIRST: firstData } = this.findCabinMinimals(flights);
 
     const normalizedOrigin = origin.toUpperCase();
     const normalizedDest = destination.toUpperCase();
@@ -156,14 +148,14 @@ export class FlightHistoryService {
     const detailsData = flights.map((f) => this.buildDetailData(f, origin, destination));
 
     const summaryData = {
-      economyMinMiles: economyMin,
-      premiumMinMiles: premiumMin,
-      businessMinMiles: businessMin,
-      firstMinMiles: firstMin,
-      economyMinJson: this.buildMinJson(economyMinFlight, origin, destination),
-      premiumMinJson: this.buildMinJson(premiumMinFlight, origin, destination),
-      businessMinJson: this.buildMinJson(businessMinFlight, origin, destination),
-      firstMinJson: this.buildMinJson(firstMinFlight, origin, destination),
+      economyMinMiles: economyData.min,
+      premiumMinMiles: premiumData.min,
+      businessMinMiles: businessData.min,
+      firstMinMiles: firstData.min,
+      economyMinJson: this.buildMinJson(economyData.flight, origin, destination),
+      premiumMinJson: this.buildMinJson(premiumData.flight, origin, destination),
+      businessMinJson: this.buildMinJson(businessData.flight, origin, destination),
+      firstMinJson: this.buildMinJson(firstData.flight, origin, destination),
     };
 
     // Falha de persistência não bloqueia a resposta da busca: o caller (ex: SmilesService)
@@ -206,12 +198,8 @@ export class FlightHistoryService {
     });
   }
 
-  async findAll(filter: FlightHistoryFilterDto) {
-    const take = Math.min(filter.take ? parseInt(filter.take, 10) : 20, 100);
-    const cursor = filter.cursor;
-
+  private buildWhereClause(filter: FlightHistoryFilterDto) {
     const where: any = {};
-
     if (filter.origin) where.origin = filter.origin.toUpperCase();
     if (filter.destination) where.destination = filter.destination.toUpperCase();
     if (filter.provider) where.provider = filter.provider;
@@ -222,28 +210,34 @@ export class FlightHistoryService {
       if (filter.dateTo) where.flightDate.lte = new Date(filter.dateTo + 'T23:59:59');
     }
 
-    // Filtros sobre details acumulados em um único `some`: existe ao menos um voo
-    // que satisfaz todos os critérios simultaneamente.
     const detailsSome: Record<string, any> = {};
     if (filter.airline) detailsSome.airline = { contains: filter.airline, mode: 'insensitive' };
     if (filter.stops !== undefined && filter.stops !== null) detailsSome.stops = Number(filter.stops);
     if (filter.cabin) detailsSome.cabin = { contains: filter.cabin, mode: 'insensitive' };
     if (Object.keys(detailsSome).length > 0) where.details = { some: detailsSome };
 
+    return where;
+  }
+
+  async findAll(filter: FlightHistoryFilterDto) {
+    const take = Math.min(filter.take ? Number.parseInt(filter.take, 10) : 20, 100);
+    const where = this.buildWhereClause(filter);
+
     const rows = await this.prisma.flightSearchResult.findMany({
       take: take + 1,
-      skip: cursor ? 1 : 0,
-      cursor: cursor ? { id: cursor } : undefined,
+      skip: filter.cursor ? 1 : 0,
+      cursor: filter.cursor ? { id: filter.cursor } : undefined,
       where,
       orderBy: [{ searchedAt: 'desc' }, { id: 'asc' }],
       include: { _count: { select: { details: true } } },
     });
 
     const hasMore = rows.length > take;
-    const data = hasMore ? rows.slice(0, take) : rows;
-    const nextCursor = hasMore ? (data.at(-1)?.id ?? null) : null;
-
-    return { data, nextCursor, hasMore };
+    return {
+      data: hasMore ? rows.slice(0, take) : rows,
+      nextCursor: hasMore ? (rows[take]?.id ?? null) : null,
+      hasMore,
+    };
   }
 
   async findOne(id: string) {

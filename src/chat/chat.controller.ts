@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Post, Query, Req, 
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AccessTokenGuard } from '../common/guards/accessToken.guard';
 import { ChatService } from './chat.service';
-import { GetMessagesDto, ImportMessagesDto, SendMessageDto } from './chat.dto';
+import { GetMessagesDto, SendMessageDto } from './chat.dto';
 import type { Request } from 'express';
 
 @ApiTags('Chat')
@@ -33,12 +33,5 @@ export class ChatController {
   @ApiResponse({ status: 204, description: 'Histórico limpo.' })
   async clearMessages(@Req() req: Request) {
     await this.chatService.clearMessages((req.user as any).id);
-  }
-
-  @Post('messages/import')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Importar histórico do localStorage (one-shot, ignora se DB já tem mensagens)' })
-  async importMessages(@Body() dto: ImportMessagesDto, @Req() req: Request) {
-    await this.chatService.importMessages((req.user as any).id, dto.messages);
   }
 }
