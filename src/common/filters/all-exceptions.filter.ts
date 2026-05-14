@@ -23,7 +23,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         message = responseData.message || message;
         error = responseData.error || error;
       } else {
-        message = exceptionResponse as string;
+        message = exceptionResponse;
       }
       this.logger.warn(`Erro HTTP ${status} em ${request.method} ${request.url}: ${typeof message === 'string' ? message : JSON.stringify(message)}`);
     } 

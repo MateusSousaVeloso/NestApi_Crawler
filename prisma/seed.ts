@@ -2,9 +2,7 @@ import { PrismaClient } from './generated/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import 'dotenv/config';
-import * as fs from 'fs';
-import * as path from 'path';
-import { randomUUID } from 'crypto';
+import bcrypt from 'bcrypt';
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -52,13 +50,14 @@ async function main() {
     });
   }
 
+  const hashedPassword = await bcrypt.hash("Mateus-2409", 12);
 
   const users = [
     {
       name: 'Mateus',
       phone_number: '5511949381549',
-      email: 'usuario@email.com',
-      password: 'SenhaForte123!',
+      email: 'mateuspantera2409@gmail.com',
+      password: hashedPassword,
     },
   ];
 

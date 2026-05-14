@@ -1,25 +1,48 @@
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Request } from 'express';
-import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JWT_CONSTANTS_TOKEN } from '../constants';
 import type { JwtConstants } from '../constants';
+import { UsersService } from '../../users/users.service';
+import { hashToken } from '../../common/hashToken';
 
 @Injectable()
 export class RefreshTokenStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
-  constructor(@Inject(JWT_CONSTANTS_TOKEN) private constants: JwtConstants) {
+  constructor(
+    @Inject(JWT_CONSTANTS_TOKEN) private readonly constants: JwtConstants,
+    private readonly usersService: UsersService,
+  ) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        (request) => {
+          const token = request?.cookies?.[process.env.REFRESH_TOKEN || 'refresh_token'];
+          return token || null;
+        },
+      ]),
       secretOrKey: constants.refresh_token_secret,
       passReqToCallback: true,
     });
   }
 
-  validate(req: Request, payload: any) {
-    const refreshToken = req.get('Authorization')?.replace('Bearer', '').trim();
+  async validate(req: Request, payload: any) {
+    const refreshToken = req?.cookies?.[process.env.REFRESH_TOKEN || 'refresh_token'] || req.get('Authorization')?.replace('Bearer', '').trim();
     if (!refreshToken) {
       throw new ForbiddenException();
     }
+
+    const user = await this.usersService.findByIdWithToken(payload.id);
+
+    if (!user.token) {
+      throw new UnauthorizedException('Sessão expirada. Faça login novamente.');
+    }
+
+    const hashedIncoming = hashToken(refreshToken);
+    if (user.token !== hashedIncoming) {
+      await this.usersService.updateToken(payload.id, null);
+      throw new UnauthorizedException('Token inválido. Sessão revogada por segurança.');
+    }
+
     return { ...payload, refreshToken };
   }
 }

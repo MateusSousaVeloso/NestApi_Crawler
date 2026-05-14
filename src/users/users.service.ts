@@ -1,11 +1,12 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { CreateUserDto, UpdateUserDto } from './users.dto';
 import * as bcrypt from 'bcrypt';
+import { hashToken } from '../common/hashToken';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(data: CreateUserDto) {
     const hashedPassword = await bcrypt.hash(data.password, 12);
@@ -18,89 +19,91 @@ export class UsersService {
         email: data.email,
         password: hashedPassword,
       },
-      omit: { password: true },
+      omit: { password: true, token: true },
     });
 
     return user;
   }
 
   async findById(id: string) {
-    const user = await this.prisma.user.findUnique({ where: { id }, omit: { password: true } });
+    const user = await this.prisma.user.findUnique({ where: { id }, omit: { password: true, token: true } });
     if (!user) throw new NotFoundException('Usuário não existe.');
     return user;
   }
 
   async findForAuth(email: string) {
-    const user = await this.prisma.user.findUnique({ where: { email }, select: { id: true, email: true, password: true } });
+    return this.prisma.user.findUnique({ where: { email }, select: { id: true, email: true, password: true } });
+  }
+
+  async findByIdWithToken(id: string) {
+    const user = await this.prisma.user.findUnique({ where: { id }, select: { id: true, email: true, token: true } });
     if (!user) throw new NotFoundException('Usuário não existe.');
     return user;
   }
 
-  async update(id: string, data: UpdateUserDto) {
-    const userExists = await this.prisma.user.findUnique({ where: { id } });
-    if (!userExists) throw new NotFoundException('Usuário não existe.');
+  async updateToken(id: string, token: string | null) {
+    const hashedToken = token ? hashToken(token) : null;
+    return this.prisma.user.update({
+      where: { id },
+      data: { token: hashedToken },
+    });
+  }
 
-    if (data.password) {
-      data.password = await bcrypt.hash(data.password, 12);
-    }
-
-    const updatedUser = await this.prisma.user.update({
+  async updateLoginMeta(id: string, token: string, userAgent?: string, ipAddress?: string) {
+    const hashedToken = hashToken(token);
+    return this.prisma.user.update({
       where: { id },
       data: {
-        ...data,
+        token: hashedToken,
+        tokenIssuedAt: new Date(),
+        tokenUserAgent: userAgent ?? null,
+        tokenIpAddress: ipAddress ?? null,
       },
-      omit: { password: true },
     });
-    return updatedUser;
+  }
+ 
+  async updatePreferences(id: string, preferences: Record<string, any>) {
+    return this.prisma.user.update({
+      where: { id },
+      data: { preferences },
+      omit: { password: true, token: true },
+    });
+  }
+
+  async update(id: string, data: UpdateUserDto) {
+    const userExists = await this.prisma.user.findUnique({
+      where: { id },
+      select: { id: true, password: true },
+    });
+    if (!userExists) throw new NotFoundException('Usuário não existe.');
+
+    if (data.password || data.email) {
+      if (!data.currentPassword) {
+        throw new UnauthorizedException('Senha atual obrigatória para alterar senha ou email.');
+      }
+      const match = await bcrypt.compare(data.currentPassword, userExists.password);
+      if (!match) throw new UnauthorizedException('Senha atual incorreta.');
+    }
+
+    const { currentPassword, ...updateData } = data;
+
+    if (updateData.password) {
+      updateData.password = await bcrypt.hash(updateData.password, 12);
+      // Invalida a sessão — usuário precisa fazer login novamente
+      await this.updateToken(id, null);
+    }
+
+    return this.prisma.user.update({
+      where: { id },
+      data: updateData,
+      omit: { password: true, token: true },
+    });
   }
 
   async delete(id: string) {
     const userExists = await this.prisma.user.findUnique({ where: { id } });
     if (!userExists) throw new NotFoundException('Usuário não existe.');
 
-    return this.prisma.user.delete({
-      where: { id },
-    });
+    await this.prisma.user.delete({ where: { id } });
   }
-
-  // async checkSubscriptionStatus(email: string) {
-  //   const user = await this.prisma.user.findUnique({
-  //     where: { email },
-  //   });
-  //   if (!user) throw new NotFoundException('Usuário não existe.');
-
-  //   const sub: any = user.subscription || {};
-  //   const expiresAt = sub.expires_at ? new Date(sub.expires_at) : null;
-  //   const now = new Date();
-
-  //   // Lógica simples de expiração
-  //   const isActive = sub.status === 'active' && expiresAt && expiresAt > now;
-  //   const daysRemaining = expiresAt ? Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 3600 * 24)) : 0;
-
-  //   if (!isActive) {
-  //     return {
-  //       user_id: user.id,
-  //       exists: true,
-  //       subscription: {
-  //         is_active: false,
-  //         status: 'past_due',
-  //         block_reason: 'payment_required',
-  //       },
-  //     };
-  //   }
-
-  //   return {
-  //     user_id: user.id,
-  //     exists: true,
-  //     subscription: {
-  //       is_active: true,
-  //       status: sub.status,
-  //       days_remaining: daysRemaining,
-  //     },
-  //     context: {
-  //       last_interaction: new Date().toISOString(),
-  //       user_name: user.name.split(' ')[0],
-  //     },
-  //   };
-  // }
 }

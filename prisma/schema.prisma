@@ -8,56 +8,54 @@ datasource db {
 }
 
 model User {
-  id              String @id @default(dbgenerated("gen_random_uuid()"))
-  name            String
-  phone_number    String   @unique
-  email           String   @unique
-  password        String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  tripInfo        TripInfo?
-  subscriptions   UserSubscription[]
-  histories       History[]
+  id               String                @id @default(dbgenerated("gen_random_uuid()"))
+  name             String
+  phone_number     String                @unique
+  email            String                @unique
+  password         String
+  createdAt        DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime              @default(now()) @updatedAt @db.Timestamptz(6)
+  preferences      Json?
+  token            String?
+  tokenIssuedAt    DateTime?             @db.Timestamptz(6)
+  tokenUserAgent   String?
+  tokenIpAddress   String?
+  chat_sessions    chat_sessions[]
+  user_api_keys    user_api_keys?
+  routePreferences UserRoutePreference[]
+  subscriptions    UserSubscription?
+  milhasMessages   milhas_message[]
+  tripInfo         TripInfo?
 
   @@map("users")
 }
 
-model SubscriptionPlan {
-  id           Int      @id
-  name         String   // Ex: "Premium Mensal"
-  price        Decimal  @db.Decimal(10, 2) 
-  durationDays Int      
+model milhas_message {
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      ChatRole
+  content   String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
 
-  users        UserSubscription[]
-  @@map("subscription_plans")
+  @@index([userId, createdAt])
+  @@map("milhas_messages")
 }
 
-model UserSubscription {
-  id            String @id @default(dbgenerated("gen_random_uuid()"))
+model TripInfo {
+  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  origin        String?    @db.VarChar(10)
+  destination   String?    @db.VarChar(10)
+  departureDate DateTime?  @db.Date
+  createdAt     DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime   @default(now()) @updatedAt @db.Timestamptz(6)
+  userPhone     String     @unique @db.VarChar(20)
+  tipoBusca     TipoBusca?
+  finalDate     DateTime?  @db.Date
+  CabinType     CabinType?
+  user          User       @relation(fields: [userPhone], references: [phone_number], onDelete: Cascade)
 
-  payment_date  DateTime @default(now()) 
-  end_date      DateTime // Data final (calculada: payment_date + plan.durationDays)
-  status        String   @default("active") // 'active', 'expired', 'cancelled'
-
-  userPhone     String   @unique @db.VarChar(20)
-  user          User     @relation(fields: [userPhone], references: [phone_number], onDelete: Cascade, onUpdate: Cascade)
-
-  planId        Int
-  plan          SubscriptionPlan @relation(fields: [planId], references: [id])
-
-  @@map("user_subscriptions")
-}
-
-model History {
-  id String @id @default(dbgenerated("gen_random_uuid()"))
-  session_id String
-  message    Json
-  createdAt  DateTime @default(now())
-  user User @relation(fields: [session_id], references: [phone_number], onDelete: Cascade, onUpdate: Cascade)
-
-  @@map("histories")
-  @@index([session_id]) 
+  @@map("trip_info")
 }
 
 enum TipoBusca {
@@ -65,19 +63,176 @@ enum TipoBusca {
   custo_beneficio
 }
 
-model TripInfo {
-  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  origin        String?   @db.VarChar(10)
-  destination   String?   @db.VarChar(10)
-  departureDate DateTime? @db.Date
-  tipoBusca     TipoBusca?
-  
-  createdAt     DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt     DateTime @updatedAt @default(now()) @db.Timestamptz(6)
+model SubscriptionPlan {
+  id           Int                @id
+  name         String
+  price        Decimal            @db.Decimal(10, 2)
+  durationDays Int
+  users        UserSubscription[]
 
-  userPhone     String   @unique @db.VarChar(20)
-  user          User     @relation(fields: [userPhone], references: [phone_number], onDelete: Cascade, onUpdate: Cascade)
-
-  @@map("trip_info")
+  @@map("subscription_plans")
 }
 
+model UserSubscription {
+  id           String             @id @default(dbgenerated("gen_random_uuid()"))
+  payment_date DateTime           @default(now())
+  end_date     DateTime
+  planId       Int
+  userId       String             @unique
+  status       SubscriptionStatus @default(active)
+  plan         SubscriptionPlan   @relation(fields: [planId], references: [id])
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, end_date])
+  @@map("user_subscriptions")
+}
+
+
+model UserRoutePreference {
+  id              String         @id @default(dbgenerated("gen_random_uuid()"))
+  originCity      String         @db.VarChar(100)
+  originIata      String         @db.VarChar(10)
+  destinationCity String         @db.VarChar(100)
+  destinationIata String         @db.VarChar(10)
+  cabinType       CabinType      @default(ANY)
+  alertFrequency  AlertFrequency @default(DAILY)
+  isActive        Boolean        @default(true)
+  createdAt       DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime       @default(now()) @updatedAt @db.Timestamptz(6)
+  userId          String
+  dateEnd         DateTime?      @db.Date
+  dateStart       DateTime?      @db.Date
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isActive])
+  @@map("user_route_preferences")
+}
+
+
+model FlightSearchResult {
+  id               String               @id @default(dbgenerated("gen_random_uuid()"))
+  flightDate       DateTime             @db.Date
+  searchedAt       DateTime             @default(now())
+  origin           String               @db.VarChar(10)
+  destination      String               @db.VarChar(10)
+  provider         String               @db.VarChar(30)
+  economyMinMiles  Int?
+  premiumMinMiles  Int?
+  businessMinMiles Int?
+  firstMinMiles    Int?
+  businessMinJson  Json?
+  economyMinJson   Json?
+  firstMinJson     Json?
+  premiumMinJson   Json?
+  details          FlightSearchDetail[]
+
+  @@unique([origin, destination, flightDate, provider])
+  @@index([origin, destination])
+  @@index([flightDate])
+  @@index([searchedAt])
+  @@map("flight_search_results")
+}
+
+model FlightSearchDetail {
+  id               String             @id @default(dbgenerated("gen_random_uuid()"))
+  searchResultId   String
+  uid              String?            @db.VarChar(50)
+  flightCode       String?            @db.VarChar(150)
+  airline          String?            @db.VarChar(100)
+  cabin            String             @db.VarChar(30)
+  cabinClass       String?            @db.VarChar(10)
+  availableSeats   Int                @default(0)
+  stops            Int                @default(0)
+  departureTime    String             @db.VarChar(15)
+  departureAirport String             @db.VarChar(10)
+  arrivalTime      String             @db.VarChar(15)
+  arrivalAirport   String             @db.VarChar(10)
+  departureDate    DateTime?
+  arrivalDate      DateTime?
+  durationHours    Int                @default(0)
+  durationMinutes  Int                @default(0)
+  miles            Int                @default(0)
+  price            Decimal?           @db.Decimal(10, 2)
+  currency         String?            @db.VarChar(10)
+  route            String             @db.VarChar(200)
+  legsJson         Json?
+  searchResult     FlightSearchResult @relation(fields: [searchResultId], references: [id], onDelete: Cascade)
+
+  @@index([searchResultId])
+  @@index([airline])
+  @@index([cabin])
+  @@map("flight_search_details")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model chat_messages {
+  id            String         @id
+  sessionId     String
+  content       String
+  role          ChatRole
+  modelProvider ModelProvider?
+  createdAt     DateTime       @default(now()) @db.Timestamptz(6)
+  chat_sessions chat_sessions  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt(sort: Desc)])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model chat_sessions {
+  id               String          @id
+  userId           String
+  title            String?         @default("Sem título")
+  summary          String          @default("")
+  userMessageCount Int             @default(0)
+  createdAt        DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime        @default(now()) @db.Timestamptz(6)
+  chat_messages    chat_messages[]
+  users            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model user_api_keys {
+  id              String    @id @default(dbgenerated("gen_random_uuid()"))
+  userId          String    @unique
+  geminiKey       String?
+  claudeKey       String?
+  openaiKey       String?
+  claudeUpdatedAt DateTime? @db.Timestamptz(6)
+  geminiUpdatedAt DateTime? @db.Timestamptz(6)
+  openaiUpdatedAt DateTime? @db.Timestamptz(6)
+  users           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+
+enum CabinType {
+  ANY
+  ECONOMIC
+  BUSINESS
+  FIRST
+}
+
+enum AlertFrequency {
+  DAILY
+  EVERY_6_HOURS
+  EVERY_12_HOURS
+}
+
+enum SubscriptionStatus {
+  active
+  cancelled
+  expired
+}
+
+enum ChatRole {
+  user
+  assistant
+  system
+}
+
+enum ModelProvider {
+  claude
+  gpt
+  gemini
+}

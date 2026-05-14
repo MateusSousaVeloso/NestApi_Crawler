@@ -6,22 +6,25 @@ import { AuthDto } from './auth.dto';
 import { CreateUserDto } from '../users/users.dto';
 import { JWT_CONSTANTS_TOKEN } from './constants';
 import type { JwtConstants } from './constants';
+import { hashToken } from '../common/hashToken';
+
 
 @Injectable()
 export class AuthService {
   constructor(
-    private usersService: UsersService,
-    private jwtService: JwtService,
-    @Inject(JWT_CONSTANTS_TOKEN) private constants: JwtConstants
+    private readonly usersService: UsersService,
+    private readonly jwtService: JwtService,
+    @Inject(JWT_CONSTANTS_TOKEN) private readonly constants: JwtConstants
   ) {}  
 
-  async signup(data: CreateUserDto) {
+  async signup(data: CreateUserDto, userAgent?: string, ipAddress?: string) {
     const user = await this.usersService.create(data);
     const { accessToken, refreshToken } = await this.getTokens(user.id, user.email);
+    await this.usersService.updateLoginMeta(user.id, refreshToken, userAgent, ipAddress);
     return { accessToken, refreshToken };
   }
 
-  async login(data: AuthDto) {
+  async login(data: AuthDto, userAgent?: string, ipAddress?: string) {
     const user = await this.usersService.findForAuth(data.email);
     if (!user) {
       throw new UnauthorizedException('Credenciais inválidas.');
@@ -33,14 +36,22 @@ export class AuthService {
     }
 
     const { accessToken, refreshToken } = await this.getTokens(user.id, user.email);
+    await this.usersService.updateLoginMeta(user.id, refreshToken, userAgent, ipAddress);
     return { accessToken, refreshToken };
   }
 
   async getTokens(id: string, email: string) {
-    const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync({ id, email }, { secret: this.constants.access_token_secret, expiresIn: '30m' }),
-      this.jwtService.signAsync({ id, email }, { secret: this.constants.refresh_token_secret }),
-    ]);
+    const refreshToken = await this.jwtService.signAsync(
+      { id, email },
+      { secret: this.constants.refresh_token_secret, expiresIn: '7d' },
+    );
+
+    const hashedToken = hashToken(refreshToken);
+
+    const accessToken = await this.jwtService.signAsync(
+      { id, email, hashedToken },
+      { secret: this.constants.access_token_secret, expiresIn: '30m' },
+    );
 
     return { accessToken, refreshToken };
   }
@@ -50,12 +61,14 @@ export class AuthService {
     if (!user) throw new BadRequestException('Nenhum usuário encontrado!');
 
     const { accessToken, refreshToken } = await this.getTokens(user.id, user.email);
+    await this.usersService.updateToken(user.id, refreshToken);
     return { accessToken, refreshToken };
   }
 
   async logout(id: string) {
     const user = await this.usersService.findById(id);
     if (!user) throw new BadRequestException('Algo deu errado ao deslogar!');
+    await this.usersService.updateToken(id, null);
     return true;
   }
 }

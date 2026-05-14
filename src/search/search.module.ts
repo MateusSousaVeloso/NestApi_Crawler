@@ -1,11 +1,13 @@
 import { Module } from '@nestjs/common';
-import { HttpModule } from '@nestjs/axios';
 import { SearchController } from './search.controller';
-import { SearchService } from './search.service';
+import { SmilesService } from './crawlers/smiles.service';
+import { AzulService } from './crawlers/azul.service';
+import { FlightHistoryModule } from '../flight-history/flight-history.module';
 
 @Module({
-  imports: [HttpModule], 
+  imports: [FlightHistoryModule],
   controllers: [SearchController],
-  providers: [SearchService],
+  providers: [SmilesService, AzulService],
+  exports: [SmilesService, AzulService],
 })
 export class SearchModule {}
