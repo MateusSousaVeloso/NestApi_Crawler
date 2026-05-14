@@ -33,7 +33,7 @@ describe('AirportsController', () => {
     const mockResult = [{ iata: 'GRU', name: 'Guarulhos' }];
     service.search.mockReturnValue(mockResult);
 
-    const result = controller.search('GRU', undefined);
+    const result = controller.search('GRU');
 
     expect(service.search).toHaveBeenCalledWith('GRU');
     expect(result).toEqual(mockResult);
@@ -50,7 +50,7 @@ describe('AirportsController', () => {
   });
 
   it('should throw BadRequestException when no params provided', () => {
-    expect(() => controller.search(undefined, undefined)).toThrow(BadRequestException);
+    expect(() => controller.search()).toThrow(BadRequestException);
   });
 
   it('should prioritize search over state when both provided', () => {

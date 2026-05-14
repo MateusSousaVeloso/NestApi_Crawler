@@ -13,7 +13,7 @@ const mockSubscription = {
   status: 'active',
   userPhone: '5511949381549',
   planId: 1,
-  plan: { name: 'Premium Mensal', price: 29.90, durationDays: 30 },
+  plan: { name: 'Premium Mensal', price: 29.9, durationDays: 30 },
 };
 
 const mockSubscriptionsService = {

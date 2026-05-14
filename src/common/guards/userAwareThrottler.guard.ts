@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
-import { createHash } from 'crypto';
+import { createHash } from 'node:crypto';
 
 // Decodifica o payload do JWT sem verificar assinatura (só para fins de rastreamento do throttler).
 // A autenticação real continua sendo feita pelo AccessTokenGuard via Passport.

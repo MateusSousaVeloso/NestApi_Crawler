@@ -12,9 +12,9 @@ import { hashToken } from '../common/hashToken';
 @Injectable()
 export class AuthService {
   constructor(
-    private usersService: UsersService,
-    private jwtService: JwtService,
-    @Inject(JWT_CONSTANTS_TOKEN) private constants: JwtConstants
+    private readonly usersService: UsersService,
+    private readonly jwtService: JwtService,
+    @Inject(JWT_CONSTANTS_TOKEN) private readonly constants: JwtConstants
   ) {}  
 
   async signup(data: CreateUserDto, userAgent?: string, ipAddress?: string) {

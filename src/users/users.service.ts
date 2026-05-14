@@ -6,7 +6,7 @@ import { hashToken } from '../common/hashToken';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(data: CreateUserDto) {
     const hashedPassword = await bcrypt.hash(data.password, 12);

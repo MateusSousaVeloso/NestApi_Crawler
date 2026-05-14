@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, Req, Res, UseGuards, Headers } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { Response, Request } from 'express';
 import { AuthDto } from './auth.dto';
@@ -38,7 +38,7 @@ export class AuthController {
   @ApiResponse({ status: 409, description: 'Telefone ou Email já cadastrados.' })
   @ApiBody({ type: CreateUserDto })
   async signup(@Body() body: CreateUserDto, @Res({ passthrough: true }) res: Response, @Req() req: Request) {
-    const userAgent = req.headers?.['user-agent'] as string | undefined;
+    const userAgent = req.headers?.['user-agent'];
     const forwarded = req.headers?.['x-forwarded-for'] as string | undefined;
     const ipAddress = forwarded?.split(',')[0]?.trim() ?? req.ip;
     const { accessToken, refreshToken } = await this.authService.signup(body, userAgent, ipAddress);

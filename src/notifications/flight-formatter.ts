@@ -92,7 +92,7 @@ export function formatFlightsForDate(date: string, flights: any[], origin: strin
     return `📅 *${formatDateExtended(date + 'T12:00:00Z')}*\n${origin} → ${destination}\n\nNenhum voo encontrado para esta data.`;
   }
 
-  if ('error' in flights) {
+  if (flights.includes('error')) {
     return `📅 *${formatDateExtended(date + 'T12:00:00Z')}*\n${origin} → ${destination}\n\nErro ao buscar voos: ${(flights as any).error}`;
   }
 

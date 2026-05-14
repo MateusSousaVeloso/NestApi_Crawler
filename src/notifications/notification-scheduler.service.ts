@@ -144,7 +144,7 @@ export class NotificationSchedulerService {
     }
  
     const firstDate = dates[0];
-    const lastDate = dates.length > 1 ? dates[dates.length - 1] : undefined;
+    const lastDate = dates.length > 1 ? dates.at(-1) : undefined;
     const cabin = CABIN_MAP[route.cabinType] || CabinClass.ALL;
     const origin = `${route.originCity} (${route.originIata})`;
     const destination = `${route.destinationCity} (${route.destinationIata})`;

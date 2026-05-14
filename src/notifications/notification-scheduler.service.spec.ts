@@ -22,8 +22,6 @@ const mockWhatsAppService = {
 describe('NotificationSchedulerService', () => {
   let service: NotificationSchedulerService;
   let prisma: typeof mockPrisma;
-  let searchService: typeof mockSearchService;
-  let whatsappService: typeof mockWhatsAppService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -37,8 +35,6 @@ describe('NotificationSchedulerService', () => {
 
     service = module.get<NotificationSchedulerService>(NotificationSchedulerService);
     prisma = module.get(PrismaService);
-    searchService = module.get(SearchService);
-    whatsappService = module.get(WhatsAppService);
     jest.clearAllMocks();
   });
 

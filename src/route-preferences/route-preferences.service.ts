@@ -4,7 +4,7 @@ import { CreateRoutePreferenceDto, UpdateRoutePreferenceDto } from './route-pref
 
 @Injectable()
 export class RoutePreferencesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   private validateDateRange(dateStart?: string, dateEnd?: string) {
     if (dateEnd) {

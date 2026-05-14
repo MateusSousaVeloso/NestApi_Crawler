@@ -4,7 +4,7 @@ import { SubscriptionStatus } from '../../prisma/generated/client';
 
 @Injectable()
 export class SubscriptionsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async subscribe(userId: string, planId: number) {
     const plan = await this.prisma.subscriptionPlan.findUnique({ where: { id: planId } });

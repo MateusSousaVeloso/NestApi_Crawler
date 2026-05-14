@@ -10,8 +10,8 @@ import { hashToken } from '../../common/hashToken';
 @Injectable()
 export class RefreshTokenStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
   constructor(
-    @Inject(JWT_CONSTANTS_TOKEN) private constants: JwtConstants,
-    private usersService: UsersService,
+    @Inject(JWT_CONSTANTS_TOKEN) private readonly constants: JwtConstants,
+    private readonly usersService: UsersService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([

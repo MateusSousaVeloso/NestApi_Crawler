@@ -14,8 +14,8 @@ type JwtPayload = {
 @Injectable()
 export class AccessTokenStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
-    @Inject(JWT_CONSTANTS_TOKEN) private constants: JwtConstants,
-    private usersService: UsersService,
+    @Inject(JWT_CONSTANTS_TOKEN) private readonly constants: JwtConstants,
+    private readonly usersService: UsersService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([

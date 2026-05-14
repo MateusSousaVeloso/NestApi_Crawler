@@ -11,8 +11,7 @@ export class PrismaExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
-    let status = HttpStatus.INTERNAL_SERVER_ERROR;
-    let message = 'Ocorreu um erro interno no servidor.';
+    let status: number, message: string;
 
     this.logger.error(`Erro Prisma em ${request.method} ${request.url}: ${exception.code}`);
 
