@@ -39,21 +39,15 @@
     "class-validator": "^0.14.3",
     "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
-    "cuimp": "^1.9.0",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "helmet": "^8.1.0",
-    "https-proxy-agent": "^9.0.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pg": "^8.17.2",
-    "playwright": "^1.58.2",
-    "playwright-extra": "^4.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
-    "tsx": "^4.21.0",
-    "tunnel": "^0.0.6"
+    "tsx": "^4.21.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.16",

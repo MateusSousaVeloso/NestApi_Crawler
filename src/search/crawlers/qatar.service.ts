@@ -1,23 +1,23 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { AzulSearchDto } from '../search.dto';
+import { QatarSearchDto } from '../search.dto';
 import { ParsedFlight } from '../search.interfaces';
 import { FlightHistoryService } from '../../flight-history/flight-history.service';
 import { filterAndSortFlights } from './crawlers.utils';
 import { CrawlerClient } from './crawler.client';
-import { parseAzulResponse } from './parsers/azul.parser';
+import { parseQatarResponse } from './parsers/qatar.parser';
 
 @Injectable()
-export class AzulService {
-  private readonly logger = new Logger(AzulService.name);
+export class QatarService {
+  private readonly logger = new Logger(QatarService.name);
 
   constructor(
     private readonly pythonClient: CrawlerClient,
     private readonly flightHistoryService: FlightHistoryService,
   ) {}
 
-  async search(dto: AzulSearchDto): Promise<Record<string, ParsedFlight[] | { error: string }>> {
-    const raw = await this.pythonClient.callCrawler<AzulSearchDto, { miles: any; cash: any }>(
-      'azul',
+  async search(dto: QatarSearchDto): Promise<Record<string, ParsedFlight[] | { error: string }>> {
+    const raw = await this.pythonClient.callCrawler<QatarSearchDto, { award: any; cash: any }>(
+      'qatar',
       dto,
     );
 
@@ -29,17 +29,17 @@ export class AzulService {
         continue;
       }
 
-      const { miles, cash } = rawData;
-      const flights = parseAzulResponse(miles, cash);
+      const { award, cash } = rawData as { award: any; cash: any };
+      const flights = parseQatarResponse(award, cash);
       if (flights.length > 0) {
         this.flightHistoryService
-          .saveSearchResults(dto.origin, dto.destination, date, 'Azul', flights)
-          .catch((err) => this.logger.error(`Erro ao salvar histórico Azul ${date}: ${err.message}`));
+          .saveSearchResults(dto.origin, dto.destination, date, 'Qatar', flights)
+          .catch((err) => this.logger.error(`Erro ao salvar histórico Qatar ${date}: ${err.message}`));
       }
       result[date] = filterAndSortFlights(flights, dto.cabin, dto.orderBy, 'miles');
     }
 
-    this.logger.log('Voos da Azul encontrados com sucesso!');
+    this.logger.log('Voos da Qatar encontrados com sucesso!');
     return result;
   }
 }
