@@ -19,6 +19,7 @@ export class CrawlerClient {
   ): Promise<Record<string, TRaw | { error: string }>> {
     try {
       const response = await this.http.post(`/search/${provider}`, dto);
+      console.log('response', response.data)
       return response.data;
     } catch (err) {
       const error = err as AxiosError<{ detail?: string }>;
