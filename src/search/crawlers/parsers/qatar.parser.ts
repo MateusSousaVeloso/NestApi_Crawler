@@ -173,38 +173,14 @@ export function parseQatarResponse(awardData: any, cashData: any): ParsedFlight[
   if (!cashData) return flights;
 
   const cashByUid = parseCashResponse(cashData);
-  const awardUids = new Set<string>();
 
   for (const flight of flights) {
-    awardUids.add(flight.uid);
     const cashKey = flight.uid;
     const cashEntry = cashByUid.get(cashKey);
     if (cashEntry) {
       flight.price = cashEntry.price;
       flight.currency = 'BRL';
     }
-  }
-
-  // Voos cash-only (sem milhas)
-  for (const [uid, entry] of cashByUid.entries()) {
-    if (awardUids.has(uid)) continue;
-    const broadFromUid = uid.split('_').pop() || '';
-    const cabin = CABIN_MAP[broadFromUid] || broadFromUid;
-    // Reconstruir contexto a partir do uid não é possível — pular se não estiver na lista de award
-    // (mantemos consistência: cash-only só aparece se award também respondeu)
-    const flight: ParsedFlight = {
-      uid,
-      airline: 'Qatar Airways',
-      cabin,
-      availableSeats: entry.seats,
-      stops: 0,
-      departure: { date: '', airport: '', name: '' },
-      arrival: { date: '', airport: '', name: '' },
-      duration: { hours: 0, minutes: 0 },
-      price: entry.price,
-      currency: 'BRL',
-    };
-    flights.push(flight);
   }
 
   return flights;

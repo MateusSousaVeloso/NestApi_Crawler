@@ -34,7 +34,7 @@ export class AzulService {
       if (flights.length > 0) {
         this.flightHistoryService
           .saveSearchResults(dto.origin, dto.destination, date, 'Azul', flights)
-          .catch((err) => this.logger.error(`Erro ao salvar histórico Azul ${date}: ${err.message}`));
+          .catch((err) => this.logger.error(`Erro ao salvar histórico Azul ${date}:`, err));
       }
       result[date] = filterAndSortFlights(flights, dto.cabin, dto.orderBy, 'miles');
     }

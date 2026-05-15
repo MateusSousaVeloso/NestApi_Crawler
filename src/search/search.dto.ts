@@ -77,7 +77,7 @@ export class SmilesSearchDto extends FlightSearchDto {
 export class AzulSearchDto extends FlightSearchDto {}
 
 export class QatarSearchDto extends FlightSearchDto {
-  @ApiProperty({ example: '2026-06-22', description: 'Data de retorno (YYYY-MM-DD) — obrigatório no Qatar' })
+  @ApiProperty({ example: '2026-06-22', description: 'Data de retorno (YYYY-MM-DD)' })
   @IsDateString()
   @IsNotEmpty()
   declare finalDate: string;

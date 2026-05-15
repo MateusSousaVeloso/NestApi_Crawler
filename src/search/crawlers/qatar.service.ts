@@ -20,7 +20,7 @@ export class QatarService {
       'qatar',
       dto,
     );
-
+  
     const result: Record<string, ParsedFlight[] | { error: string }> = {};
     for (const [date, rawData] of Object.entries(raw)) {
       if (rawData && typeof rawData === 'object' && 'error' in rawData) {
@@ -34,7 +34,7 @@ export class QatarService {
       if (flights.length > 0) {
         this.flightHistoryService
           .saveSearchResults(dto.origin, dto.destination, date, 'Qatar', flights)
-          .catch((err) => this.logger.error(`Erro ao salvar histórico Qatar ${date}: ${err.message}`));
+          .catch((err) => this.logger.error(`Erro ao salvar histórico Qatar ${date}:`, err));
       }
       result[date] = filterAndSortFlights(flights, dto.cabin, dto.orderBy, 'miles');
     }
