@@ -7,9 +7,21 @@ import { IberiaService } from './crawlers/iberia.service';
 import { TapService } from './crawlers/tap.service';
 import { CrawlerClient } from './crawlers/crawler.client';
 import { FlightHistoryModule } from '../flight-history/flight-history.module';
+import { ClientsModule, Transport } from '@nestjs/microservices';
 
 @Module({
-  imports: [FlightHistoryModule],
+  imports: [FlightHistoryModule,
+    ClientsModule.register([
+      {
+        name: 'RABBITMQ_CLIENT',
+        transport: Transport.RMQ,
+        options: {
+          urls: [process.env.RABBITMQ_URL || 'amqp://localhost:5672'],
+          queue: 'crawler_queue',
+          queueOptions: { durable: true },
+        },
+      }])
+  ],
   controllers: [SearchController],
   providers: [
     CrawlerClient,
@@ -21,4 +33,5 @@ import { FlightHistoryModule } from '../flight-history/flight-history.module';
   ],
   exports: [SmilesService, AzulService, QatarService, IberiaService, TapService],
 })
+
 export class SearchModule {}
