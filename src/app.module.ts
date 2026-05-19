@@ -11,6 +11,7 @@ import { AirportsModule } from './airports/airports.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { FlightHistoryModule } from './flight-history/flight-history.module';
 import { ChatModule } from './chat/chat.module';
+import { JobsModule } from './jobs/jobs.module';
 import { UserAwareThrottlerGuard } from './common/guards/userAwareThrottler.guard';
 
 @Module({
@@ -30,6 +31,7 @@ import { UserAwareThrottlerGuard } from './common/guards/userAwareThrottler.guar
     NotificationsModule,
     FlightHistoryModule,
     ChatModule,
+    JobsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: UserAwareThrottlerGuard },

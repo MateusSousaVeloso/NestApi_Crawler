@@ -136,7 +136,7 @@ model FlightSearchResult {
 model FlightSearchDetail {
   id               String             @id @default(dbgenerated("gen_random_uuid()"))
   searchResultId   String
-  uid              String?            @db.VarChar(50)
+  uid              String?            @db.VarChar(100)
   flightCode       String?            @db.VarChar(150)
   airline          String?            @db.VarChar(100)
   cabin            String             @db.VarChar(30)
@@ -235,4 +235,25 @@ enum ModelProvider {
   claude
   gpt
   gemini
+}
+
+enum JobStatus {
+  pending
+  processing
+  completed
+  failed
+}
+
+model Job {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  status       JobStatus @default(pending)
+  provider     String    @db.VarChar(30)
+  payload      Json
+  result       Json?
+  errorMessage String?
+  createdAt    DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@index([status])
+  @@map("jobs")
 }
