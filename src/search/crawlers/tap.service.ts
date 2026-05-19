@@ -10,6 +10,6 @@ export class TapService {
   constructor(private readonly pythonClient: CrawlerClient) {}
 
   async search(userId: string, dto: TapSearchDto): Promise<{ id: string }> {
-    return this.pythonClient.callCrawler(FlightProvider.Tap, userId, dto);
+    return await this.pythonClient.callCrawler<TapSearchDto>(FlightProvider.Tap, userId, dto);
   }
 }
