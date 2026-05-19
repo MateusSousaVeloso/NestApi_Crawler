@@ -149,44 +149,13 @@ export class NotificationSchedulerService {
     const origin = `${route.originCity} (${route.originIata})`;
     const destination = `${route.destinationCity} (${route.destinationIata})`;
  
+    // TODO: adaptar para nova arquitetura assíncrona via fila
+    // o smilesService.search() agora retorna { id } imediatamente
+    // o resultado dos voos chega via search_results_queue
     try {
-      const result = await this.smilesService.search({
-        origin: route.originIata,
-        destination: route.destinationIata,
-        departureDate: firstDate,
-        finalDate: lastDate,
-        adults: 1,
-        children: 0,
-        infants: 0,
-        cabin,
-        orderBy: OrderBy.PRECO,
-      });
- 
-      if (lastDate) {
-        const grouped = result as Record<string, ParsedFlight[] | { error: string }>;
-        for (const date of dates) {
-          const flights = grouped[date];
-          const flightsArray = Array.isArray(flights) ? flights : [];
-          const message = formatFlightsForDate(date, flightsArray, origin, destination);
-          await this.whatsappService.sendMessage(phone, message);
-        }
-      } else {
-        const flights = Array.isArray(result) ? result : [];
-        const message = formatFlightsForDate(firstDate, flights, origin, destination);
-        await this.whatsappService.sendMessage(phone, message);
-      }
+      this.logger.warn(`Notificação para rota ${route.id} desativada temporariamente (migração para fila)`);
     } catch (error: any) {
       this.logger.error(`Erro ao buscar voos na rota ${route.id}: ${error.message}`);
- 
-      const errorMsg =
-        `✈️ ${origin} → ${destination}\n\n` +
-        `Não foi possível buscar voos. Tentaremos novamente no próximo ciclo.`;
- 
-      try {
-        await this.whatsappService.sendMessage(phone, errorMsg);
-      } catch {
-        this.logger.error(`Falha ao enviar mensagem de erro para ${phone}`);
-      }
     }
   }
  

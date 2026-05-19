@@ -7,6 +7,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { Transport, MicroserviceOptions, RmqOptions } from '@nestjs/microservices';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -60,7 +61,27 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('swagger', app, document);
+  
+  // fila de resultados dos crawlers
+  app.connectMicroservice<RmqOptions>({
+    transport: Transport.RMQ,
+    options: {
+      urls: [process.env.RABBITMQ_URL || 'amqp://localhost:5672'],
+      queue: 'search_results_queue',
+      queueOptions: { durable: true },
+    },
+  });
 
+  // fila de atualizações de status (doing)
+  app.connectMicroservice<RmqOptions>({
+    transport: Transport.RMQ,
+    options: {
+      urls: [process.env.RABBITMQ_URL || 'amqp://localhost:5672'],
+      queue: 'status-queue',
+      queueOptions: { durable: true },
+    },
+  });
+  await app.startAllMicroservices();
   await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
 }
 void bootstrap();

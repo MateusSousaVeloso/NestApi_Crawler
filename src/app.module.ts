@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
+import { JobsModule } from './jobs/jobs.module';
 import { APP_GUARD } from '@nestjs/core';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
@@ -16,6 +18,7 @@ import { UserAwareThrottlerGuard } from './common/guards/userAwareThrottler.guar
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([
       { name: 'auth',    ttl: 60000, limit: 5  }, // rotas de auth (signup/login)
       { name: 'search',  ttl: 60000, limit: 20 }, // crawler Smiles/Azul
@@ -30,6 +33,7 @@ import { UserAwareThrottlerGuard } from './common/guards/userAwareThrottler.guar
     NotificationsModule,
     FlightHistoryModule,
     ChatModule,
+    JobsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: UserAwareThrottlerGuard },

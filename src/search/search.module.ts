@@ -6,8 +6,10 @@ import { QatarService } from './crawlers/qatar.service';
 import { IberiaService } from './crawlers/iberia.service';
 import { TapService } from './crawlers/tap.service';
 import { CrawlerClient } from './crawlers/crawler.client';
+import { SearchResultsConsumer } from './search-result.consumer';
 import { FlightHistoryModule } from '../flight-history/flight-history.module';
 import { ClientsModule, Transport } from '@nestjs/microservices';
+import { PrismaService } from '../database/prisma.service';
 
 @Module({
   imports: [FlightHistoryModule,
@@ -17,14 +19,16 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
         transport: Transport.RMQ,
         options: {
           urls: [process.env.RABBITMQ_URL || 'amqp://localhost:5672'],
-          queue: 'crawler_queue',
+          queue: 'priority-queue',
           queueOptions: { durable: true },
         },
       }])
   ],
-  controllers: [SearchController],
+  controllers: [SearchController, SearchResultsConsumer],
   providers: [
+    PrismaService,
     CrawlerClient,
+    SearchResultsConsumer,
     SmilesService,
     AzulService,
     QatarService,

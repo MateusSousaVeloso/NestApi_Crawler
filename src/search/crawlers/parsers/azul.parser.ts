@@ -158,7 +158,9 @@ function parseCashResponse(data: any): Map<string, number> {
   return byUid;
 }
 
-export function parseAzulResponse(milesData: any, cashData: any): ParsedFlight[] {
+export function parseAzulResponse(raw: any): ParsedFlight[] {
+  const milesData = raw?.miles;
+  const cashData = raw?.cash;
   const milesResults = parseMilesResponse(milesData);
   const cashByUid = cashData ? parseCashResponse(cashData) : new Map<string, number>();
 

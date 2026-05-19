@@ -168,7 +168,9 @@ function parseAwardResponse(data: any): ParsedFlight[] {
   return flights;
 }
 
-export function parseQatarResponse(awardData: any, cashData: any): ParsedFlight[] {
+export function parseQatarResponse(raw: any): ParsedFlight[] {
+  const awardData = raw?.award;
+  const cashData = raw?.cash;
   const flights = parseAwardResponse(awardData);
   if (!cashData) return flights;
 

@@ -1,31 +1,33 @@
-import { HttpException, HttpStatus, Injectable, Logger,  Inject, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger,  Inject } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
-import { firstValueFrom, timeout } from 'rxjs';
+import { PrismaService } from '../../database/prisma.service'
+import { FlightProvider } from '../search.enums';
 
 @Injectable()
 export class CrawlerClient {
   private readonly logger = new Logger(CrawlerClient.name);
   
-  constructor(@Inject('RABBITMQ_CLIENT') private readonly client: ClientProxy) {} 
+  constructor(@Inject('RABBITMQ_CLIENT') private readonly client: ClientProxy,
+      private readonly prisma: PrismaService, 
+    ) {} 
 
-  async callCrawler<TDto, TRaw = unknown>(
-    provider: 'smiles' | 'azul' | 'qatar' | 'iberia' | 'tap',
+  async callCrawler<TDto>(
+    provider: FlightProvider,
+    userId: string,
     dto: TDto,
-  ): Promise<Record<string, TRaw | { error: string }>> {
-    // tenta chamar o crawler e aguarda a resposta, com timeout de 200 segundos
-    try {
-      return await firstValueFrom(
-        this.client.send<Record<string, TRaw | { error: string }>>(
-          { cmd: `crawl-${provider}` },
-          dto,
-        ).pipe(timeout(200000)),
-      );
-    } catch (err) {
-      this.logger.error(`Falha ao chamar crawler (${provider}): ${err.message}`);
-      throw new HttpException(
-        { message: `Falha ao comunicar com o crawler (${provider})`, detail: err.message },
-        HttpStatus.BAD_GATEWAY,
-      );
-    }
+  ): Promise<{id: string}> {
+    // salva no banco
+    const { id } = await this.prisma.user_searches.create({
+      data: {
+        userId,
+        provider,
+        params: dto as any,
+        priority: true, // buscas disparadas pelo usuário têm prioridade
+      },
+    });
+    this.client.emit({ cmd: `crawl-${provider}` }, {userSearchId: id, ...dto as any});
+
+    this.logger.log(`Busca ${id} enfileirada (${provider})`)
+    return { id };  
   }
 }
