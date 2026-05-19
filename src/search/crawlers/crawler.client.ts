@@ -1,25 +1,33 @@
-import { HttpException, HttpStatus, Injectable, Logger,  Inject, OnModuleInit } from '@nestjs/common';
-import { ClientProxy } from '@nestjs/microservices';
-import { firstValueFrom, timeout } from 'rxjs';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
+import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class CrawlerClient {
   private readonly logger = new Logger(CrawlerClient.name);
-  
-  constructor(@Inject('RABBITMQ_CLIENT') private readonly client: ClientProxy) {} 
+  private readonly baseUrl: string;
+
+  constructor(
+    private readonly http: HttpService,
+    private readonly config: ConfigService,
+  ) {
+    this.baseUrl = this.config.get<string>('PYTHON_CRAWLER_URL') ?? 'http://localhost:8000';
+  }
 
   async callCrawler<TDto, TRaw = unknown>(
     provider: 'smiles' | 'azul' | 'qatar' | 'iberia' | 'tap',
     dto: TDto,
   ): Promise<Record<string, TRaw | { error: string }>> {
-    // tenta chamar o crawler e aguarda a resposta, com timeout de 200 segundos
     try {
-      return await firstValueFrom(
-        this.client.send<Record<string, TRaw | { error: string }>>(
-          { cmd: `crawl-${provider}` },
+      const { data } = await firstValueFrom(
+        this.http.post<Record<string, TRaw | { error: string }>>(
+          `${this.baseUrl}/search/${provider}`,
           dto,
-        ).pipe(timeout(200000)),
+          { timeout: 200000 },
+        ),
       );
+      return data;
     } catch (err) {
       this.logger.error(`Falha ao chamar crawler (${provider}): ${err.message}`);
       throw new HttpException(

@@ -11,6 +11,7 @@ import { ParsedFlight } from '../search/search.interfaces';
 
 interface ResultMessage {
   jobId: string;
+  status?: 'started';
   rawData?: Record<string, unknown>;
   error?: string;
 }
@@ -35,20 +36,17 @@ export class ResultsConsumer implements OnModuleInit {
 
   async onModuleInit() {
     const channel = this.rabbitMQ.getChannel();
-
-    // prefetch(1) → processa 1 mensagem por vez, evita sobrecarregar o NestJS
     channel.prefetch(1);
 
     channel.consume(RESULTS_QUEUE, async (msg) => {
       if (!msg) return;
-
       try {
         const message: ResultMessage = JSON.parse(msg.content.toString());
         await this.process(message);
-        channel.ack(msg); // confirma que processou → RabbitMQ remove da fila
+        channel.ack(msg);
       } catch (err) {
         this.logger.error(`Erro ao processar resultado: ${(err as Error).message}`);
-        channel.nack(msg, false, false); // nack sem requeue → vai para DLQ (se configurada)
+        channel.nack(msg, false, false);
       }
     });
 
@@ -56,39 +54,82 @@ export class ResultsConsumer implements OnModuleInit {
   }
 
   private async process(message: ResultMessage) {
-    const job = await this.jobsService.findById(message.jobId);
+    const search = await this.jobsService.findById(message.jobId);
 
-    if (message.error) {
-      await this.jobsService.markFailed(job.id, message.error);
-      this.logger.warn(`Job ${job.id} falhou: ${message.error}`);
+    if (message.status === 'started') {
+      if (search.status === 'pending') {
+        await this.jobsService.markDoing(search.id);
+        this.logger.log(`UserSearch ${search.id} iniciado pelo worker`);
+      }
       return;
     }
 
-    const dto = job.payload as Record<string, unknown>;
+    if (message.error) {
+      if (search.status !== 'done') {
+        await this.jobsService.markError(search.id, message.error);
+        this.logger.warn(`UserSearch ${search.id} falhou: ${message.error}`);
+      }
+      return;
+    }
+
+    const dto = search.params as Record<string, unknown>;
     const raw = message.rawData!;
+    let totalFlights = 0;
 
     for (const [date, rawData] of Object.entries(raw)) {
       if (!rawData || (typeof rawData === 'object' && 'error' in rawData)) continue;
+      let flightDate = date;
+      if (isNaN(new Date(date).getTime())) {
+        const fallback = this.extractDepartureDate(dto);
+        if (!fallback) {
+          this.logger.warn(`Chave de data inválida sem fallback: "${date}" — ignorado`);
+          continue;
+        }
+        flightDate = fallback;
+      }
 
-      const flights = this.parse(job.provider, rawData);
+      const flights = this.parse(search.provider, rawData);
+      totalFlights += flights.length;
 
       if (flights.length > 0) {
-        await this.flightHistory
+        const flightResult = await this.flightHistory
           .saveSearchResults(
             dto.origin as string,
             dto.destination as string,
-            date,
-            PROVIDER_LABEL[job.provider] ?? job.provider,
+            flightDate,
+            PROVIDER_LABEL[search.provider] ?? search.provider,
             flights,
           )
-          .catch((err: Error) =>
-            this.logger.error(`Erro ao salvar voos [${job.provider}/${date}]: ${err.message}`),
-          );
+          .catch((err: Error) => {
+            this.logger.error(`Erro ao salvar voos [${search.provider}/${flightDate}]: ${err.message}`);
+            return null;
+          });
+
+        if (flightResult) {
+          await this.jobsService
+            .addResult(search.id, flightResult.id)
+            .catch((err: Error) =>
+              this.logger.error(`Erro ao criar UserSearchResult: ${err.message}`),
+            );
+        }
       }
     }
 
-    await this.jobsService.markCompleted(job.id);
-    this.logger.log(`Job ${job.id} (${job.provider}) concluído`);
+    if (search.status !== 'done' && search.status !== 'error') {
+      await this.jobsService.markDone(search.id);
+    }
+    this.logger.log(`UserSearch ${search.id} (${search.provider}) concluído — ${totalFlights} voo(s)`);
+  }
+
+  private extractDepartureDate(dto: Record<string, unknown>): string | null {
+    const raw = (dto.departureDate ?? dto.dep_date) as string | undefined;
+    if (!raw) return null;
+    // DD.MM.YYYY → YYYY-MM-DD
+    if (/^\d{2}\.\d{2}\.\d{4}$/.test(raw)) {
+      const [d, m, y] = raw.split('.');
+      return `${y}-${m}-${d}`;
+    }
+    return raw;
   }
 
   private parse(provider: string, rawData: unknown): ParsedFlight[] {

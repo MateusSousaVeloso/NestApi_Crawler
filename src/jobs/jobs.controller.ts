@@ -1,8 +1,21 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { JobsService } from './jobs.service';
-import { RabbitMQService, JOBS_QUEUE } from '../rabbitmq/rabbitmq.service';
+import { RabbitMQService, PRIORITY_QUEUE } from '../rabbitmq/rabbitmq.service';
 import { CreateJobDto } from './jobs.dto';
+import { AccessTokenGuard } from '../common/guards/accessToken.guard';
 
 @ApiTags('Jobs')
 @Controller('jobs')
@@ -12,32 +25,41 @@ export class JobsController {
     private readonly rabbitMQ: RabbitMQService,
   ) {}
 
-  /**
-   * Cria um job de busca assíncrona e publica na fila do RabbitMQ.
-   * O frontend usa o jobId retornado para fazer polling em GET /jobs/:id.
-   */
   @Post()
+  @UseGuards(AccessTokenGuard)
   @HttpCode(HttpStatus.ACCEPTED)
-  @ApiOperation({ summary: 'Criar job de busca assíncrona' })
-  async createJob(@Body() dto: CreateJobDto) {
-    const job = await this.jobsService.create(dto.provider, dto.payload);
+  @ApiOperation({ summary: 'Criar busca assíncrona — retorna searchId para polling' })
+  async createJob(@Body() dto: CreateJobDto, @Req() req: Request) {
+    const userId = (req.user as { id: string }).id;
+    const search = await this.jobsService.create(dto.provider, dto.params, userId);
 
-    // Publica a mensagem na fila — o Python worker vai consumir isso
-    this.rabbitMQ.publish(JOBS_QUEUE, {
-      jobId: job.id,
+    this.rabbitMQ.publish(PRIORITY_QUEUE, {
+      jobId: search.id,
       provider: dto.provider,
-      payload: dto.payload,
+      payload: dto.params,
     });
 
-    return { jobId: job.id, status: job.status };
+    return { searchId: search.id, status: search.status };
   }
 
-  /**
-   * Retorna o status e resultado do job (polling do frontend).
-   * status: pending → processing → completed | failed
-   */
+  @Get()
+  @UseGuards(AccessTokenGuard)
+  @ApiOperation({ summary: 'Listar buscas do usuário autenticado com paginação' })
+  @ApiQuery({ name: 'status', required: false, enum: ['pending', 'doing', 'done', 'error'] })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  listSearches(
+    @Req() req: Request,
+    @Query('status') status?: string,
+    @Query('page') page = '1',
+    @Query('limit') limit = '20',
+  ) {
+    const userId = (req.user as { id: string }).id;
+    return this.jobsService.listByUser(userId, status, Number(page), Number(limit));
+  }
+
   @Get(':id')
-  @ApiOperation({ summary: 'Buscar status e resultado do job' })
+  @ApiOperation({ summary: 'Polling de status — status: pending → doing → done | error' })
   getJob(@Param('id') id: string) {
     return this.jobsService.findById(id);
   }

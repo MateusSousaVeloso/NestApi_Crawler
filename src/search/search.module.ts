@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { HttpModule } from '@nestjs/axios';
 import { SearchController } from './search.controller';
 import { SmilesService } from './crawlers/smiles.service';
 import { AzulService } from './crawlers/azul.service';
@@ -7,21 +8,9 @@ import { IberiaService } from './crawlers/iberia.service';
 import { TapService } from './crawlers/tap.service';
 import { CrawlerClient } from './crawlers/crawler.client';
 import { FlightHistoryModule } from '../flight-history/flight-history.module';
-import { ClientsModule, Transport } from '@nestjs/microservices';
 
 @Module({
-  imports: [FlightHistoryModule,
-    ClientsModule.register([
-      {
-        name: 'RABBITMQ_CLIENT',
-        transport: Transport.RMQ,
-        options: {
-          urls: [process.env.RABBITMQ_URL || 'amqp://localhost:5672'],
-          queue: 'crawler_queue',
-          queueOptions: { durable: true },
-        },
-      }])
-  ],
+  imports: [FlightHistoryModule, HttpModule],
   controllers: [SearchController],
   providers: [
     CrawlerClient,
@@ -33,5 +22,4 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
   ],
   exports: [SmilesService, AzulService, QatarService, IberiaService, TapService],
 })
-
 export class SearchModule {}

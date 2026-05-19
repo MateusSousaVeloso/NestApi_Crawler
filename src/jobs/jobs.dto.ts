@@ -11,5 +11,5 @@ export class CreateJobDto {
 
   @ApiProperty({ description: 'Parâmetros da busca (depende do provider)' })
   @IsNotEmpty()
-  payload: Record<string, unknown>;
+  params: Record<string, unknown>;
 }

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import * as amqp from 'amqplib';
 
 export const JOBS_QUEUE = 'jobs_queue';
+export const PRIORITY_QUEUE = 'priority_queue';
 export const RESULTS_QUEUE = 'results_queue';
 
 @Injectable()
@@ -18,8 +19,9 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
     this.connection = await amqp.connect(url);
     this.channel = await this.connection.createChannel();
 
-    await this.channel.assertQueue(JOBS_QUEUE,    { durable: true });
-    await this.channel.assertQueue(RESULTS_QUEUE, { durable: true });
+    await this.channel.assertQueue(PRIORITY_QUEUE, { durable: true });
+    await this.channel.assertQueue(JOBS_QUEUE,     { durable: true });
+    await this.channel.assertQueue(RESULTS_QUEUE,  { durable: true });
 
     this.logger.log('RabbitMQ conectado');
   }

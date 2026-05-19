@@ -124,7 +124,8 @@ model FlightSearchResult {
   economyMinJson   Json?
   firstMinJson     Json?
   premiumMinJson   Json?
-  details          FlightSearchDetail[]
+  details           FlightSearchDetail[]
+  userSearchResults UserSearchResult[]
 
   @@unique([origin, destination, flightDate, provider])
   @@index([origin, destination])
@@ -136,7 +137,7 @@ model FlightSearchResult {
 model FlightSearchDetail {
   id               String             @id @default(dbgenerated("gen_random_uuid()"))
   searchResultId   String
-  uid              String?            @db.VarChar(100)
+  uid              String?            @db.VarChar(500)
   flightCode       String?            @db.VarChar(150)
   airline          String?            @db.VarChar(100)
   cabin            String             @db.VarChar(30)
@@ -237,23 +238,40 @@ enum ModelProvider {
   gemini
 }
 
-enum JobStatus {
+enum UserSearchStatus {
   pending
-  processing
-  completed
-  failed
+  doing
+  done
+  error
 }
 
-model Job {
-  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  status       JobStatus @default(pending)
-  provider     String    @db.VarChar(30)
-  payload      Json
-  result       Json?
-  errorMessage String?
-  createdAt    DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt    DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+model UserSearch {
+  id              String             @id @default(uuid())
+  userId          String
+  status          UserSearchStatus   @default(pending)
+  provider        String             @db.VarChar(30)
+  params          Json
+  priority        Boolean            @default(false)
+  searchTimestamp DateTime           @default(now()) @db.Timestamptz(6)
+  startedAt       DateTime?          @db.Timestamptz(6)
+  completedAt     DateTime?          @db.Timestamptz(6)
+  errorMessage    String?
+  createdAt       DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime           @default(now()) @updatedAt @db.Timestamptz(6)
+  results         UserSearchResult[]
 
   @@index([status])
-  @@map("jobs")
+  @@index([userId])
+  @@map("user_searches")
+}
+
+model UserSearchResult {
+  id                 String             @id @default(uuid())
+  userSearchId       String
+  resultId           String
+  userSearch         UserSearch         @relation(fields: [userSearchId], references: [id], onDelete: Cascade)
+  flightSearchResult FlightSearchResult @relation(fields: [resultId], references: [id], onDelete: Cascade)
+
+  @@unique([userSearchId, resultId])
+  @@map("user_search_results")
 }
