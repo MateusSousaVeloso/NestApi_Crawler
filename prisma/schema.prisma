@@ -126,12 +126,64 @@ model FlightSearchResult {
   premiumMinJson   Json?
   details           FlightSearchDetail[]
   userSearchResults UserSearchResult[]
+  histories         FlightSearchResultHistory[]
 
   @@unique([origin, destination, flightDate, provider])
   @@index([origin, destination])
   @@index([flightDate])
   @@index([searchedAt])
   @@map("flight_search_results")
+}
+
+model FlightSearchResultHistory {
+  id               String                     @id @default(dbgenerated("gen_random_uuid()"))
+  originalResultId String?
+  flightDate       DateTime                   @db.Date
+  searchedAt       DateTime
+  snapshotAt       DateTime                   @default(now())
+  origin           String
+  destination      String
+  provider         String
+  economyMinMiles  Int?
+  premiumMinMiles  Int?
+  businessMinMiles Int?
+  firstMinMiles    Int?
+  economyMinJson   Json?
+  premiumMinJson   Json?
+  businessMinJson  Json?
+  firstMinJson     Json?
+  originalResult   FlightSearchResult?        @relation(fields: [originalResultId], references: [id], onDelete: SetNull)
+  detailHistories  FlightSearchDetailHistory[]
+
+  @@map("flight_search_result_history")
+}
+
+model FlightSearchDetailHistory {
+  id               String                    @id @default(dbgenerated("gen_random_uuid()"))
+  resultHistoryId  String
+  uid              String?
+  flightCode       String?
+  airline          String?
+  cabin            String
+  cabinClass       String?
+  availableSeats   Int                       @default(0)
+  stops            Int                       @default(0)
+  departureTime    String
+  departureAirport String
+  arrivalTime      String
+  arrivalAirport   String
+  departureDate    DateTime?
+  arrivalDate      DateTime?
+  durationHours    Int                       @default(0)
+  durationMinutes  Int                       @default(0)
+  miles            Int                       @default(0)
+  price            Decimal?                  @db.Decimal(10, 2)
+  currency         String?
+  route            String
+  legsJson         Json?
+  resultHistory    FlightSearchResultHistory  @relation(fields: [resultHistoryId], references: [id], onDelete: Cascade)
+
+  @@map("flight_search_detail_history")
 }
 
 model FlightSearchDetail {

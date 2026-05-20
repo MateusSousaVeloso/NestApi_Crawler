@@ -158,9 +158,72 @@ export class FlightHistoryService {
       firstMinJson: this.buildMinJson(firstData.flight, origin, destination),
     };
 
-    // Falha de persistência não bloqueia a resposta da busca: o caller (ex: SmilesService)
-    // recebe o erro via .catch() e segue retornando os voos.
     return this.prisma.$transaction(async (tx) => {
+      // Busca o registro atual antes de sobrescrever
+      const existing = await tx.flightSearchResult.findUnique({
+        where: {
+          origin_destination_flightDate_provider: {
+            origin: normalizedOrigin,
+            destination: normalizedDest,
+            flightDate: parsedDate,
+            provider,
+          },
+        },
+        include: { details: true },
+      });
+
+      // Se já existe, salva snapshot do estado anterior
+      if (existing) {
+        const snapshot = await tx.flightSearchResultHistory.create({
+          data: {
+            originalResultId: existing.id,
+            flightDate: existing.flightDate,
+            searchedAt: existing.searchedAt,
+            origin: existing.origin,
+            destination: existing.destination,
+            provider: existing.provider,
+            economyMinMiles: existing.economyMinMiles,
+            premiumMinMiles: existing.premiumMinMiles,
+            businessMinMiles: existing.businessMinMiles,
+            firstMinMiles: existing.firstMinMiles,
+            economyMinJson: existing.economyMinJson ?? undefined,
+            premiumMinJson: existing.premiumMinJson ?? undefined,
+            businessMinJson: existing.businessMinJson ?? undefined,
+            firstMinJson: existing.firstMinJson ?? undefined,
+          },
+        });
+
+        if (existing.details.length > 0) {
+          await tx.flightSearchDetailHistory.createMany({
+            data: existing.details.map((d) => ({
+              resultHistoryId: snapshot.id,
+              uid: d.uid,
+              flightCode: d.flightCode,
+              airline: d.airline,
+              cabin: d.cabin,
+              cabinClass: d.cabinClass,
+              availableSeats: d.availableSeats,
+              stops: d.stops,
+              departureTime: d.departureTime,
+              departureAirport: d.departureAirport,
+              arrivalTime: d.arrivalTime,
+              arrivalAirport: d.arrivalAirport,
+              departureDate: d.departureDate,
+              arrivalDate: d.arrivalDate,
+              durationHours: d.durationHours,
+              durationMinutes: d.durationMinutes,
+              miles: d.miles,
+              price: d.price,
+              currency: d.currency,
+              route: d.route,
+              legsJson: d.legsJson ?? undefined,
+            })),
+          });
+        }
+
+        this.logger.log(`Snapshot salvo para ${provider} ${normalizedOrigin}->${normalizedDest} ${flightDate} (${existing.details.length} voos)`);
+      }
+
       await tx.flightSearchDetail.deleteMany({
         where: {
           searchResult: {
@@ -195,7 +258,7 @@ export class FlightHistoryService {
           details: { create: detailsData },
         },
       });
-    });
+    }, { timeout: 30000 });
   }
 
   private buildWhereClause(filter: FlightHistoryFilterDto) {
