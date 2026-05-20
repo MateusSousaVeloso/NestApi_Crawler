@@ -8,9 +8,11 @@ import { IberiaService } from './crawlers/iberia.service';
 import { TapService } from './crawlers/tap.service';
 import { CrawlerClient } from './crawlers/crawler.client';
 import { FlightHistoryModule } from '../flight-history/flight-history.module';
+import { JobsModule } from '../jobs/jobs.module';
+import { RabbitMQModule } from '../rabbitmq/rabbitmq.module';
 
 @Module({
-  imports: [FlightHistoryModule, HttpModule],
+  imports: [FlightHistoryModule, HttpModule, JobsModule, RabbitMQModule],
   controllers: [SearchController],
   providers: [
     CrawlerClient,

@@ -10,5 +10,6 @@ import { PrismaService } from '../database/prisma.service';
   imports: [RabbitMQModule, FlightHistoryModule],
   controllers: [JobsController],
   providers: [JobsService, ResultsConsumer, PrismaService],
+  exports: [JobsService],
 })
 export class JobsModule {}
