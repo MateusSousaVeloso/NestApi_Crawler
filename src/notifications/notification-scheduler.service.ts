@@ -1,66 +1,62 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../database/prisma.service';
-import { SmilesService } from '../search/crawlers/smiles.service';
-import { WhatsAppService } from './whatsapp.service';
-import { formatFlightsForDate } from './flight-formatter';
+import { JobsService } from '../jobs/jobs.service';
+import { RabbitMQService, JOBS_QUEUE } from '../rabbitmq/rabbitmq.service';
 import { AlertFrequency, SubscriptionStatus } from '../../prisma/generated/client';
 import { CabinClass, OrderBy } from '../search/search.dto';
-import type { ParsedFlight } from '../search/search.interfaces';
- 
-interface RouteWithUser {
+
+interface RouteToEnqueue {
   id: string;
-  originCity: string;
+  userId: string;
   originIata: string;
-  destinationCity: string;
   destinationIata: string;
   cabinType: string;
   dateStart: Date | null;
   dateEnd: Date | null;
-  user: { phone_number: string; name: string };
 }
- 
+
 const CABIN_MAP: Record<string, CabinClass> = {
   ANY: CabinClass.ALL,
   ECONOMIC: CabinClass.ECONOMIC,
   BUSINESS: CabinClass.BUSINESS,
   FIRST: CabinClass.FIRST,
 };
- 
+
 @Injectable()
 export class NotificationSchedulerService {
   private readonly logger = new Logger(NotificationSchedulerService.name);
- 
+
   constructor(
     private readonly prisma: PrismaService,
-    private readonly smilesService: SmilesService,
-    private readonly whatsappService: WhatsAppService,
-  ) {}
- 
+    private readonly jobsService: JobsService,
+    private readonly rabbitMQ: RabbitMQService,
+  ) { }
+
   @Cron(CronExpression.EVERY_6_HOURS)
   async handleEvery6Hours() {
-    this.logger.log('Executando alertas a cada 6 horas...');
+    this.logger.log('Enfileirando alertas a cada 6 horas...');
     await this.processRoutes(AlertFrequency.EVERY_6_HOURS);
   }
- 
+
   @Cron(CronExpression.EVERY_12_HOURS)
   async handleEvery12Hours() {
-    this.logger.log('Executando alertas a cada 12 horas...');
+    this.logger.log('Enfileirando alertas a cada 12 horas...');
     await this.processRoutes(AlertFrequency.EVERY_12_HOURS);
   }
- 
+
   @Cron(CronExpression.EVERY_DAY_AT_8AM)
   async handleDaily() {
-    this.logger.log('Executando alertas diários...');
+    this.logger.log('Enfileirando alertas diários...');
     await this.processRoutes(AlertFrequency.DAILY);
   }
- 
+
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async deactivateExpiredRoutes() {
     this.logger.log('Verificando rotas expiradas...');
     const today = new Date();
     today.setHours(0, 0, 0, 0);
- 
+
     const expired = await this.prisma.userRoutePreference.updateMany({
       where: {
         isActive: true,
@@ -68,16 +64,16 @@ export class NotificationSchedulerService {
       },
       data: { isActive: false },
     });
- 
+
     if (expired.count > 0) {
       this.logger.log(`${expired.count} rota(s) desativada(s) por expiração de data`);
     }
   }
- 
+
   @Cron(CronExpression.EVERY_DAY_AT_1AM)
   async expireSubscriptions() {
     this.logger.log('Verificando assinaturas expiradas...');
- 
+
     const expired = await this.prisma.userSubscription.updateMany({
       where: {
         status: SubscriptionStatus.active,
@@ -85,16 +81,16 @@ export class NotificationSchedulerService {
       },
       data: { status: SubscriptionStatus.expired },
     });
- 
+
     if (expired.count > 0) {
       this.logger.log(`${expired.count} assinatura(s) marcada(s) como expirada(s)`);
     }
   }
- 
+
   private async processRoutes(frequency: AlertFrequency) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
- 
+
     const routes = await this.prisma.userRoutePreference.findMany({
       where: {
         isActive: true,
@@ -104,25 +100,17 @@ export class NotificationSchedulerService {
           { dateEnd: { gte: today } },
         ],
       },
-      include: {
-        user: {
-          select: {
-            phone_number: true,
-            name: true,
-          },
-        },
-      },
     });
- 
+
     this.logger.log(`Encontradas ${routes.length} rota(s) ativa(s) para frequência ${frequency}`);
- 
+
     const BATCH_SIZE = 15;
     for (let i = 0; i < routes.length; i += BATCH_SIZE) {
       const batch = routes.slice(i, i + BATCH_SIZE);
       const results = await Promise.allSettled(
-        batch.map((route) => this.processOneRoute(route)),
+        batch.map((route) => this.enqueueRoute(route)),
       );
- 
+
       for (const [index, result] of results.entries()) {
         if (result.status === 'rejected') {
           const route = batch[index];
@@ -133,81 +121,55 @@ export class NotificationSchedulerService {
       }
     }
   }
- 
-  private async processOneRoute(route: RouteWithUser) {
-    const phone = route.user.phone_number;
+
+  private async enqueueRoute(route: RouteToEnqueue) {
     const dates = this.getDateRange(route.dateStart, route.dateEnd);
- 
+
     if (dates.length === 0) {
       this.logger.warn(`Rota ${route.id}: nenhuma data válida no range`);
       return;
     }
- 
+
+    const cabin = CABIN_MAP[route.cabinType] || CabinClass.ALL;
     const firstDate = dates[0];
     const lastDate = dates.length > 1 ? dates.at(-1) : undefined;
-    const cabin = CABIN_MAP[route.cabinType] || CabinClass.ALL;
-    const origin = `${route.originCity} (${route.originIata})`;
-    const destination = `${route.destinationCity} (${route.destinationIata})`;
- 
-    try {
-      const result = await this.smilesService.search({
-        origin: route.originIata,
-        destination: route.destinationIata,
-        departureDate: firstDate,
-        finalDate: lastDate,
-        adults: 1,
-        children: 0,
-        infants: 0,
-        cabin,
-        orderBy: OrderBy.PRECO,
-      });
- 
-      if (lastDate) {
-        const grouped = result as Record<string, ParsedFlight[] | { error: string }>;
-        for (const date of dates) {
-          const flights = grouped[date];
-          const flightsArray = Array.isArray(flights) ? flights : [];
-          const message = formatFlightsForDate(date, flightsArray, origin, destination);
-          await this.whatsappService.sendMessage(phone, message);
-        }
-      } else {
-        const flights = Array.isArray(result) ? result : [];
-        const message = formatFlightsForDate(firstDate, flights, origin, destination);
-        await this.whatsappService.sendMessage(phone, message);
-      }
-    } catch (error: any) {
-      this.logger.error(`Erro ao buscar voos na rota ${route.id}: ${error.message}`);
- 
-      const errorMsg =
-        `✈️ ${origin} → ${destination}\n\n` +
-        `Não foi possível buscar voos. Tentaremos novamente no próximo ciclo.`;
- 
-      try {
-        await this.whatsappService.sendMessage(phone, errorMsg);
-      } catch {
-        this.logger.error(`Falha ao enviar mensagem de erro para ${phone}`);
-      }
-    }
+
+    const payload: Record<string, unknown> = {
+      origin: route.originIata,
+      destination: route.destinationIata,
+      departureDate: firstDate,
+      ...(lastDate && { finalDate: lastDate }),
+      adults: 1,
+      children: 0,
+      infants: 0,
+      cabin,
+      orderBy: OrderBy.PRECO,
+      routePreferenceId: route.id,
+    };
+
+    const job = await this.jobsService.create('smiles', payload, route.userId);
+    this.rabbitMQ.publish(JOBS_QUEUE, { jobId: job.id, provider: 'smiles', payload });
+    this.logger.log(`Job ${job.id} enfileirado para rota ${route.id} (${route.originIata}->${route.destinationIata})`);
   }
- 
+
   private getDateRange(dateStart: Date | null, dateEnd: Date | null): string[] {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
- 
+
     const start = dateStart && new Date(dateStart) >= today ? new Date(dateStart) : today;
     const end = dateEnd ? new Date(dateEnd) : start;
- 
+
     if (end < today) return [];
- 
+
     const dates: string[] = [];
     const current = new Date(start);
     current.setHours(0, 0, 0, 0);
- 
+
     while (current <= end) {
       dates.push(current.toISOString().split('T')[0]);
       current.setDate(current.getDate() + 1);
     }
- 
+
     return dates;
   }
 }
