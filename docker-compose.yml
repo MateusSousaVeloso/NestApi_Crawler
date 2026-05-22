@@ -1,0 +1,73 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s # testa a cada 10s
+      timeout: 5s # cada teste tem 5s para responder
+      retries: 10 # tenta 10 vezes antes de desistir
+      start_period: 30s # espera 30s antes de começar a testar
+
+  nest:
+    build: ./api-nest
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./api-nest/.env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672
+    restart: on-failure
+
+  python:
+    build: ./api-python
+    platform: linux/amd64
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./api-python/.env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672
+      DISPLAY: ":99"
+    command: >
+      sh -c "Xvfb :99 -screen 0 1280x720x24 &
+             sleep 1 &&
+             uvicorn main:app --host 0.0.0.0 --port 8000"
+
+  worker:
+    build: ./api-python
+    platform: linux/amd64
+    env_file:
+      - ./api-python/.env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672
+      DISPLAY: ":99"
+      WORKER_CONCURRENCY: 4
+    command: >
+      sh -c "Xvfb :99 -screen 0 1280x720x24 &
+             sleep 1 &&
+             python worker.py"
+    restart: on-failure
+    deploy:
+      replicas: 3
+
+  front:
+    build: ./front
+    ports:
+      - "80:80"
+    depends_on:
+      - nest
