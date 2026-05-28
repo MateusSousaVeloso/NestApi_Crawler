@@ -12,6 +12,7 @@ import {
   SmilesSearchDto,
   TapSearchDto,
 } from './search.dto';
+import { FlightProvider } from './search.enums';
 
 @ApiTags('Search')
 @Controller('search')
@@ -39,7 +40,7 @@ export class SearchController {
   @ApiBody({ type: SmilesSearchDto })
   async searchSmiles(@Body() dto: SmilesSearchDto, @Req() req: Request) {
     const userId = (req.user as { id: string }).id;
-    const search = await this.enqueueSearch('smiles', dto as unknown as Record<string, unknown>, userId);
+    const search = await this.enqueueSearch(FlightProvider.Smiles, dto as unknown as Record<string, unknown>, userId);
     return { searchId: search.id, status: search.status };
   }
 
@@ -50,7 +51,7 @@ export class SearchController {
   @ApiBody({ type: AzulSearchDto })
   async searchAzul(@Body() dto: AzulSearchDto, @Req() req: Request) {
     const userId = (req.user as { id: string }).id;
-    const search = await this.enqueueSearch('azul', dto as unknown as Record<string, unknown>, userId);
+    const search = await this.enqueueSearch(FlightProvider.Azul, dto as unknown as Record<string, unknown>, userId);
     return { searchId: search.id, status: search.status };
   }
 
@@ -61,7 +62,7 @@ export class SearchController {
   @ApiBody({ type: QatarSearchDto })
   async searchQatar(@Body() dto: QatarSearchDto, @Req() req: Request) {
     const userId = (req.user as { id: string }).id;
-    const search = await this.enqueueSearch('qatar', dto as unknown as Record<string, unknown>, userId);
+    const search = await this.enqueueSearch(FlightProvider.Qatar, dto as unknown as Record<string, unknown>, userId);
     return { searchId: search.id, status: search.status };
   }
 
@@ -72,7 +73,7 @@ export class SearchController {
   @ApiBody({ type: IberiaSearchDto })
   async searchIberia(@Body() dto: IberiaSearchDto, @Req() req: Request) {
     const userId = (req.user as { id: string }).id;
-    const search = await this.enqueueSearch('iberia', dto as unknown as Record<string, unknown>, userId);
+    const search = await this.enqueueSearch(FlightProvider.Iberia, dto as unknown as Record<string, unknown>, userId);
     return { searchId: search.id, status: search.status };
   }
 
@@ -83,7 +84,7 @@ export class SearchController {
   @ApiBody({ type: TapSearchDto })
   async searchTap(@Body() dto: TapSearchDto, @Req() req: Request) {
     const userId = (req.user as { id: string }).id;
-    const search = await this.enqueueSearch('tap', dto as unknown as Record<string, unknown>, userId);
+    const search = await this.enqueueSearch(FlightProvider.Tap, dto as unknown as Record<string, unknown>, userId);
     return { searchId: search.id, status: search.status };
   }
 }

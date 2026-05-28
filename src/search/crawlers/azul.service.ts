@@ -5,6 +5,7 @@ import { FlightHistoryService } from '../../flight-history/flight-history.servic
 import { filterAndSortFlights } from './crawlers.utils';
 import { CrawlerClient } from './crawler.client';
 import { parseAzulResponse } from './parsers/azul.parser';
+import { FlightProvider } from '../search.enums';
 
 @Injectable()
 export class AzulService {
@@ -17,7 +18,7 @@ export class AzulService {
 
   async search(dto: AzulSearchDto): Promise<Record<string, ParsedFlight[] | { error: string }>> {
     const raw = await this.pythonClient.callCrawler<AzulSearchDto, { miles: any; cash: any }>(
-      'azul',
+      FlightProvider.Azul,
       dto,
     );
 
@@ -33,7 +34,7 @@ export class AzulService {
       const flights = parseAzulResponse(miles, cash);
       if (flights.length > 0) {
         this.flightHistoryService
-          .saveSearchResults(dto.origin, dto.destination, date, 'Azul', flights)
+          .saveSearchResults(dto.origin, dto.destination, date, FlightProvider.Azul, flights)
           .catch((err) => this.logger.error(`Erro ao salvar histórico Azul ${date}:`, err));
       }
       result[date] = filterAndSortFlights(flights, dto.cabin, dto.orderBy, 'miles');

@@ -8,6 +8,7 @@ import { parseAzulResponse } from '../search/crawlers/parsers/azul.parser';
 import { parseIberiaResponse } from '../search/crawlers/parsers/iberia.parser';
 import { parseTapResponse } from '../search/crawlers/parsers/tap.parser';
 import { ParsedFlight } from '../search/search.interfaces';
+import { FlightProvider } from '../search/search.enums';
 
 interface ResultMessage {
   jobId: string;
@@ -16,13 +17,6 @@ interface ResultMessage {
   error?: string;
 }
 
-const PROVIDER_LABEL: Record<string, string> = {
-  smiles: 'Smiles',
-  qatar: 'Qatar',
-  azul: 'Azul',
-  iberia: 'Iberia',
-  tap: 'TAP',
-};
 
 @Injectable()
 export class ResultsConsumer implements OnModuleInit {
@@ -74,6 +68,7 @@ export class ResultsConsumer implements OnModuleInit {
 
     const dto = search.params as Record<string, unknown>;
     const raw = message.rawData!;
+    const provider = search.provider;
     let totalFlights = 0;
 
     for (const [date, rawData] of Object.entries(raw)) {
@@ -88,7 +83,7 @@ export class ResultsConsumer implements OnModuleInit {
         flightDate = fallback;
       }
 
-      const flights = this.parse(search.provider, rawData);
+      const flights = this.parse(provider, rawData);
       totalFlights += flights.length;
 
       if (flights.length > 0) {
@@ -97,7 +92,7 @@ export class ResultsConsumer implements OnModuleInit {
             dto.origin as string,
             dto.destination as string,
             flightDate,
-            PROVIDER_LABEL[search.provider] ?? search.provider,
+            provider,
             flights,
           )
           .catch((err: Error) => {
@@ -134,19 +129,15 @@ export class ResultsConsumer implements OnModuleInit {
 
   private parse(provider: string, rawData: unknown): ParsedFlight[] {
     switch (provider) {
-      case 'smiles':
+      case FlightProvider.Smiles:
         return parseSmilesResponse(rawData);
-      case 'qatar': {
-        const { award, cash } = rawData as { award: unknown; cash: unknown };
-        return parseQatarResponse(award, cash);
-      }
-      case 'azul': {
-        const { miles, cash } = rawData as { miles: unknown; cash: unknown };
-        return parseAzulResponse(miles, cash);
-      }
-      case 'iberia':
+      case FlightProvider.Qatar:
+        return parseQatarResponse(rawData, null);
+      case FlightProvider.Azul:
+        return parseAzulResponse(rawData, null);
+      case FlightProvider.Iberia:
         return parseIberiaResponse(rawData);
-      case 'tap':
+      case FlightProvider.Tap:
         return parseTapResponse(rawData);
       default:
         this.logger.warn(`Provider desconhecido: ${provider}`);

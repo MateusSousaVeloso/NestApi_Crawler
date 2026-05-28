@@ -4,6 +4,7 @@ import { ParsedFlight } from '../search.interfaces';
 import { FlightHistoryService } from '../../flight-history/flight-history.service';
 import { CrawlerClient } from './crawler.client';
 import { parseIberiaResponse } from './parsers/iberia.parser';
+import { FlightProvider } from '../search.enums';
 
 @Injectable()
 export class IberiaService {
@@ -15,7 +16,7 @@ export class IberiaService {
   ) {}
 
   async search(dto: IberiaSearchDto): Promise<Record<string, ParsedFlight[] | { error: string }>> {
-    const raw = await this.pythonClient.callCrawler<IberiaSearchDto>('iberia', dto);
+    const raw = await this.pythonClient.callCrawler<IberiaSearchDto>(FlightProvider.Iberia, dto);
 
     const result: Record<string, ParsedFlight[] | { error: string }> = {};
     for (const [date, rawData] of Object.entries(raw)) {
@@ -27,7 +28,7 @@ export class IberiaService {
       const flights = parseIberiaResponse(rawData);
       if (flights.length > 0) {
         this.flightHistoryService
-          .saveSearchResults(dto.origin, dto.destination, date, 'Iberia', flights)
+          .saveSearchResults(dto.origin, dto.destination, date, FlightProvider.Iberia, flights)
           .catch((err) => this.logger.error(`Erro ao salvar histórico Iberia ${date}: ${err.message}`));
       }
       result[date] = flights.slice(0, 3);

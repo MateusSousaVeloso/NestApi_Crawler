@@ -5,6 +5,7 @@ import { FlightHistoryService } from '../../flight-history/flight-history.servic
 import { filterAndSortFlights } from './crawlers.utils';
 import { CrawlerClient } from './crawler.client';
 import { parseSmilesResponse } from './parsers/smiles.parser';
+import { FlightProvider } from '../search.enums';
 
 @Injectable()
 export class SmilesService {
@@ -16,7 +17,7 @@ export class SmilesService {
   ) {}
 
   async search(dto: SmilesSearchDto): Promise<Record<string, ParsedFlight[] | { error: string }>> {
-    const raw = await this.pythonClient.callCrawler<SmilesSearchDto>('smiles', dto);
+    const raw = await this.pythonClient.callCrawler<SmilesSearchDto>(FlightProvider.Smiles, dto);
 
     const result: Record<string, ParsedFlight[] | { error: string }> = {};
     for (const [date, rawData] of Object.entries(raw)) {
@@ -28,7 +29,7 @@ export class SmilesService {
       const flights = parseSmilesResponse(rawData);
       if (flights.length > 0) {
         this.flightHistoryService
-          .saveSearchResults(dto.origin, dto.destination, date, 'Smiles', flights)
+          .saveSearchResults(dto.origin, dto.destination, date, FlightProvider.Smiles, flights)
           .catch((err) => this.logger.error(`Erro ao salvar histórico Smiles ${date}: ${err.message}`));
       }
       result[date] = filterAndSortFlights(flights, dto.cabin, dto.orderBy, 'miles');
