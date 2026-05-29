@@ -36,6 +36,8 @@ export class ResultsConsumer implements OnModuleInit {
       if (!msg) return;
       try {
         const message: ResultMessage = JSON.parse(msg.content.toString());
+        const preview = msg.content.toString().slice(0, 200);
+        this.logger.log(`← results_queue recebido: ${preview}`);
         await this.process(message);
         channel.ack(msg);
       } catch (err) {

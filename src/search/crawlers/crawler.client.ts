@@ -20,14 +20,14 @@ export class CrawlerClient {
     provider: FlightProvider,
     dto: TDto,
   ): Promise<Record<string, TRaw | { error: string }>> {
+    const url = `${this.baseUrl}/search/${provider.toLowerCase()}`;
+    this.logger.log(`→ POST ${url}`);
     try {
       const { data } = await firstValueFrom(
-        this.http.post<Record<string, TRaw | { error: string }>>(
-          `${this.baseUrl}/search/${provider.toLowerCase()}`,
-          dto,
-          { timeout: 200000 },
-        ),
+        this.http.post<Record<string, TRaw | { error: string }>>(url, dto, { timeout: 200000 }),
       );
+      const preview = JSON.stringify(data).slice(0, 200);
+      this.logger.log(`← ${provider} response: ${preview}`);
       return data;
     } catch (err) {
       this.logger.error(`Falha ao chamar crawler (${provider.toLowerCase()}): ${err.message}`);

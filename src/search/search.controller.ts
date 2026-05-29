@@ -1,4 +1,4 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Controller, Post, Body, HttpCode, HttpStatus, Req, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import type { Request } from 'express';
@@ -23,7 +23,42 @@ export class SearchController {
     private readonly rabbitMQ: RabbitMQService,
   ) {}
 
+  private toDate(raw: string): Date {
+    return new Date(raw);
+  }
+
+  private adjustDateRange(dto: Record<string, unknown>): Record<string, unknown> | null {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString().split('T')[0];
+
+    const depRaw = dto.departureDate as string | undefined;
+    const finRaw = dto.finalDate as string | undefined;
+
+    const dep = depRaw ? this.toDate(depRaw) : null;
+    const fin = finRaw ? this.toDate(finRaw) : null;
+
+    // finalDate no passado → rejeita sempre
+    if (fin && fin < today) {
+      throw new BadRequestException('Data final está no passado');
+    }
+
+    // departureDate no passado sem finalDate → rejeita
+    if (dep && dep < today && !fin) {
+      throw new BadRequestException('Data de partida está no passado');
+    }
+
+    // departureDate no passado mas finalDate ok → trimma para hoje
+    if (dep && dep < today) {
+      return { ...dto, departureDate: todayStr };
+    }
+
+    return dto;
+  }
+
   private async enqueueSearch(provider: string, dto: Record<string, unknown>, userId: string) {
+    dto = this.adjustDateRange(dto)!;
+
     const search = await this.jobsService.create(provider, dto, userId);
     this.rabbitMQ.publish(JOBS_QUEUE, {
       jobId: search.id,
