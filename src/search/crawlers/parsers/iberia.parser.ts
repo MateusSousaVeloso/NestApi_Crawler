@@ -3,6 +3,24 @@ import { ParsedFlight } from '../../search.interfaces';
 export function parseIberiaResponse(data: any): ParsedFlight[] {
   if (!data) return [];
 
+  // DEBUG: log estrutura da resposta para diagnóstico
+  const topKeys = Object.keys(data);
+  console.log(`[IberiaParser] top-level keys: ${JSON.stringify(topKeys)}`);
+  const ods = data.originDestinations || [];
+  if (ods.length > 0) {
+    console.log(`[IberiaParser] OD[0] keys: ${JSON.stringify(Object.keys(ods[0]))}`);
+    if (ods[0].slices?.length > 0) {
+      console.log(`[IberiaParser] OD[0].slices[0] keys: ${JSON.stringify(Object.keys(ods[0].slices[0]))}`);
+    } else {
+      console.log(`[IberiaParser] OD[0] sem 'slices'. Amostra: ${JSON.stringify(ods[0]).slice(0, 300)}`);
+    }
+  }
+  const offers = data.offers || [];
+  console.log(`[IberiaParser] offers count: ${offers.length}`);
+  if (offers.length > 0) {
+    console.log(`[IberiaParser] offer[0] keys: ${JSON.stringify(Object.keys(offers[0]))}`);
+  }
+
   // sliceId → {slice, od} para cruzar dados de voo com preços das offers
   const sliceLookup = new Map<string, { slice: any; od: any }>();
   for (const od of data.originDestinations || []) {
