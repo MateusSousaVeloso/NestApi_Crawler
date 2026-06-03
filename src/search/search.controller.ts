@@ -53,6 +53,11 @@ export class SearchController {
       return { ...dto, departureDate: todayStr };
     }
 
+    // finalDate anterior a departureDate → rejeita
+    if (dep && fin && fin < dep) {
+      throw new BadRequestException('Data final não pode ser anterior à data de partida');
+    }
+
     return dto;
   }
 
