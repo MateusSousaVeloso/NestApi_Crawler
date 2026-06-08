@@ -1,66 +1,75 @@
-import { ParsedFlight } from '../../search.interfaces';
+import { ParsedFlight, FlightLeg } from '../../search.interfaces';
 
 export function parseIberiaResponse(data: any): ParsedFlight[] {
-  if (!data) return [];
-
-  // sliceId → {slice, od} para cruzar dados de voo com preços das offers
-  const sliceLookup = new Map<string, { slice: any; od: any }>();
-  for (const od of data.originDestinations || []) {
-    for (const sl of od.slices || []) {
-      sliceLookup.set(sl.sliceId, { slice: sl, od });
-    }
-  }
+  if (!data || typeof data !== 'object') return [];
 
   const flights: ParsedFlight[] = [];
+  const seen = new Set<string>();
 
   try {
-    for (const offer of data.offers || []) {
-      const price = offer.price || {};
+    for (const od of data.originDestinations || []) {
+      for (const slice of od.slices || []) {
+        const uid = `IB-${slice.sliceId}`;
+        if (seen.has(uid)) continue;
+        seen.add(uid);
 
-      for (const odOffer of offer.originDestinations || []) {
-        for (const applicableSlice of odOffer.applicableSlices || []) {
-          const sliceId = applicableSlice.sliceId;
-          const entry = sliceLookup.get(sliceId);
-          if (!entry) continue;
-          const sliceObj = entry.slice;
+        const segs: any[] = slice.segments || [];
+        if (!segs.length) continue;
 
-          const fareSegs = applicableSlice.segments || [];
-          const cabin = fareSegs[0]?.bookingClass || '';
+        const firstSeg = segs[0];
+        const lastSeg  = segs[segs.length - 1];
 
-          for (const seg of sliceObj.segments || []) {
-            const flightInfo = seg.flight || {};
-            const marketing = flightInfo.marketingCarrier || {};
-            const flightNumber = flightInfo.marketingFlightNumber || '';
-            const code = marketing.code || '';
+        const cabin: string = firstSeg.offers?.[0]?.bookingClass ?? '';
+        const availableSeats: number = firstSeg.offers?.[0]?.remainingSeats ?? 0;
 
-            flights.push({
-              uid: `${code}${flightNumber}`,
-              airline: marketing.name || 'Iberia',
-              cabin,
-              availableSeats: 0,
-              stops: sliceObj.stopsNumber ?? 0,
-              departure: {
-                flightCode: `${code}${flightNumber}`,
-                date: seg.departureDateTime || '',
-                airport: seg.departureAirport || '',
-                name: '',
-              },
-              arrival: {
-                date: seg.arrivalDateTime || '',
-                airport: seg.arrivalAirport || '',
-                name: '',
-              },
-              duration: { hours: 0, minutes: 0 },
-              price: Number(price.total ?? 0) || undefined,
-              currency: price.currency || 'BRL',
-            });
-          }
-        }
+        const flightCode = segs
+          .map((s: any) => `${s.flight?.marketingCarrier?.code ?? ''}${s.flight?.marketingFlightNumber ?? ''}`)
+          .join(', ');
+
+        const legs: FlightLeg[] = segs.map((s: any) => ({
+          flightCode: `${s.flight?.marketingCarrier?.code ?? ''}${s.flight?.marketingFlightNumber ?? ''}`,
+          cabin,
+          aircraft: s.flight?.aircraft?.description ?? '',
+          departure: {
+            date:    s.departureDateTime ?? '',
+            airport: s.departure?.airport?.code ?? '',
+          },
+          arrival: {
+            date:    s.arrivalDateTime ?? '',
+            airport: s.arrival?.airport?.code ?? '',
+          },
+        }));
+
+        const durationMin: number = slice.duration ?? 0;
+
+        flights.push({
+          uid,
+          airline: firstSeg.flight?.marketingCarrier?.name ?? 'Iberia',
+          cabin,
+          availableSeats,
+          stops: slice.stopsNumber ?? (segs.length - 1),
+          departure: {
+            flightCode,
+            date:    slice.departureDateTime ?? firstSeg.departureDateTime ?? '',
+            airport: firstSeg.departure?.airport?.code ?? '',
+            name:    firstSeg.departure?.city?.description ?? '',
+          },
+          arrival: {
+            date:    slice.arrivalDateTime ?? lastSeg.arrivalDateTime ?? '',
+            airport: lastSeg.arrival?.airport?.code ?? '',
+            name:    lastSeg.arrival?.city?.description ?? '',
+          },
+          duration: {
+            hours:   Math.floor(durationMin / 60),
+            minutes: durationMin % 60,
+          },
+          currency: 'BRL',
+          legs,
+        });
       }
     }
   } catch (e: any) {
-    console.error(`Erro ao parsear resposta Iberia: ${e.message}`);
-    return [];
+    console.error(`[IberiaParser] Erro: ${e.message}`);
   }
 
   return flights;

@@ -73,19 +73,25 @@ export class ResultsConsumer implements OnModuleInit {
     const provider = search.provider;
     let totalFlights = 0;
 
+    this.logger.log(`[${provider}] rawData recebido | chaves: [${Object.keys(raw).join(', ')}]`);
+
     for (const [date, rawData] of Object.entries(raw)) {
-      if (!rawData || (typeof rawData === 'object' && 'error' in rawData)) continue;
+      if (!rawData || (typeof rawData === 'object' && 'error' in rawData)) {
+        this.logger.warn(`[${provider}] chave "${date}" ignorada — nula ou erro: ${JSON.stringify(rawData)}`);
+        continue;
+      }
       let flightDate = date;
       if (isNaN(new Date(date).getTime())) {
         const fallback = this.extractDepartureDate(dto);
         if (!fallback) {
-          this.logger.warn(`Chave de data inválida sem fallback: "${date}" — ignorado`);
+          this.logger.warn(`[${provider}] chave de data inválida sem fallback: "${date}" — ignorado`);
           continue;
         }
         flightDate = fallback;
       }
 
       const flights = this.parse(provider, rawData);
+      this.logger.log(`[${provider}] chave "${date}" → parse retornou ${flights.length} voo(s)`);
       totalFlights += flights.length;
 
       if (flights.length > 0) {
