@@ -1,0 +1,35 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s # testa a cada 10s
+      timeout: 5s # cada teste tem 5s para responder
+      retries: 10 # tenta 10 vezes antes de desistir
+      start_period: 30s # espera 30s antes de começar a testar
+
+  nest:
+    build: ./api-nest
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./api-nest/.env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672
+    restart: on-failure
+
+  front:
+    build: ./front
+    ports:
+      - "80:80"
+    depends_on:
+      - nest
