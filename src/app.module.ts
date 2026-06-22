@@ -11,8 +11,10 @@ import { AirportsModule } from './airports/airports.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { FlightHistoryModule } from './flight-history/flight-history.module';
 import { ChatModule } from './chat/chat.module';
-import { JobsModule } from './jobs/jobs.module';
 import { UserAwareThrottlerGuard } from './common/guards/userAwareThrottler.guard';
+import { RabbitMQModule } from './rabbitmq/rabbitmq.module';
+import { UserSearchesModule } from './user-searches/user-searches.module';
+import { ResultsConsumerModule } from './rabbitmq/results-consumer.module';
 
 @Module({
   imports: [
@@ -22,8 +24,10 @@ import { UserAwareThrottlerGuard } from './common/guards/userAwareThrottler.guar
       { name: 'search',  ttl: 60000, limit: 20 }, // crawler Smiles/Azul
       { name: 'default', ttl: 60000, limit: 60 }, // demais rotas autenticadas
     ]),
+    RabbitMQModule,
     UsersModule,
     AuthModule,
+    UserSearchesModule,
     SearchModule,
     SubscriptionsModule,
     RoutePreferencesModule,
@@ -31,7 +35,7 @@ import { UserAwareThrottlerGuard } from './common/guards/userAwareThrottler.guar
     NotificationsModule,
     FlightHistoryModule,
     ChatModule,
-    JobsModule,
+    ResultsConsumerModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: UserAwareThrottlerGuard },

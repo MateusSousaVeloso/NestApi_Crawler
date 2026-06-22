@@ -18,12 +18,7 @@ async function bootstrap() {
   if (!frontendUrl) {
     throw new Error('FRONTEND_URL deve ser configurada nas variáveis de ambiente.');
   }
-  // Aceita múltiplas origens separadas por vírgula (ex.: front no Docker na porta 80 e Vite dev na 5173).
-  const allowedOrigins = frontendUrl
-    .split(',')
-    .map((url) => url.trim())
-    .filter(Boolean);
-  app.enableCors({ origin: allowedOrigins, credentials: true });
+  app.enableCors({ origin: frontendUrl, credentials: true });
 
   // CSRF: rejeita requests mutantes originados de domínios diferentes do frontend.
   // Requests sem header Origin (curl, Postman, server-to-server) são permitidos.

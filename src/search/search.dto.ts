@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsInt, Min, IsDateString, IsEnum, IsBoolean } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsInt, Min, IsDateString, IsEnum, IsBoolean, Matches } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
@@ -14,37 +14,25 @@ export enum OrderBy {
   CUSTO_BENEFICIO = 'custo_beneficio',
 }
 
-// Datas computadas uma vez no carregamento do módulo para preencher defaults
-function nextMonthDate(extraDays = 0): string {
-  const d = new Date();
-  // mes + 1
-  d.setMonth(d.getMonth() + 1);
-  if (extraDays) d.setDate(d.getDate() + extraDays);
-  return d.toISOString().split('T')[0];
-}
-const DEP_DATE_EXAMPLE = nextMonthDate();
-// dia final + 3
-const FIN_DATE_EXAMPLE = nextMonthDate(3);
-
 export class FlightSearchDto {
   @ApiProperty({ example: 'GRU', description: 'Código IATA do aeroporto de origem' })
   @IsString()
   @IsNotEmpty()
   origin: string;
 
-  @ApiProperty({ example: 'GRU', description: 'Código IATA do aeroporto de destino' })
+  @ApiProperty({ example: 'MIA', description: 'Código IATA do aeroporto de destino' })
   @IsString()
   @IsNotEmpty()
   destination: string;
 
-  @ApiProperty({ example: DEP_DATE_EXAMPLE, description: 'Data inicial de partida (YYYY-MM-DD)' })
+  @ApiProperty({ example: '2026-05-19', description: 'Data inicial de partida (YYYY-MM-DD)' })
   @IsDateString()
   @IsNotEmpty()
   departureDate: string;
 
   @ApiPropertyOptional({
-    example: FIN_DATE_EXAMPLE,
-    description: 'Data final de partida (YYYY-MM-DD) - opcional para range de dias',
+    example: '2026-05-21',
+    description: 'Data final de partida (YYYY-MM-DD) - opcional para pesquisar voo de um range de dias',
   })
   @IsDateString()
   @IsOptional()
@@ -80,53 +68,62 @@ export class FlightSearchDto {
 }
 
 export class SmilesSearchDto extends FlightSearchDto {
-  @ApiProperty({ example: 'GRU' }) declare origin: string;
-  @ApiProperty({ example: 'MIA' }) declare destination: string;
-
   @ApiPropertyOptional({ example: '', description: 'Número de membro Smiles (opcional)' })
   @IsString()
   @IsOptional()
   memberNumber?: string;
 }
 
-export class AzulSearchDto extends FlightSearchDto {
-  @ApiProperty({ example: 'GRU' }) declare origin: string;
-  @ApiProperty({ example: 'REC' }) declare destination: string;
-}
+export class AzulSearchDto extends FlightSearchDto {}
 
 export class QatarSearchDto extends FlightSearchDto {
-  @ApiProperty({ example: 'GRU' }) declare origin: string;
-  @ApiProperty({ example: 'DOH' }) declare destination: string;
-
-  @ApiProperty({ example: FIN_DATE_EXAMPLE, description: 'Data de retorno (YYYY-MM-DD)' })
+  @ApiProperty({ example: '2026-06-22', description: 'Data de retorno (YYYY-MM-DD)' })
   @IsDateString()
   @IsNotEmpty()
   declare finalDate: string;
 }
 
-export class IberiaSearchDto extends FlightSearchDto {
-  @ApiProperty({ example: 'GRU' }) declare origin: string;
-  @ApiProperty({ example: 'MAD' }) declare destination: string;
-}
+export class IberiaSearchDto {
+  @ApiProperty({ example: 'SAO' })
+  @IsString()
+  @IsNotEmpty()
+  origin: string;
 
-export class TapSearchDto extends FlightSearchDto {
-  @ApiProperty({ example: 'GRU' }) declare origin: string;
-  @ApiProperty({ example: 'LIS' }) declare destination: string;
+  @ApiProperty({ example: 'MAD' })
+  @IsString()
+  @IsNotEmpty()
+  destination: string;
 
-  @ApiPropertyOptional({ example: 0, default: 0 })
+  @ApiProperty({ example: '2026-06-15', description: 'Data de partida (YYYY-MM-DD)' })
+  @IsDateString()
+  @IsNotEmpty()
+  departureDate: string;
+
+  @ApiProperty({ example: 1, default: 1 })
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  adults: number = 1;
+
+  @ApiProperty({ example: 0, default: 0 })
   @IsInt()
   @Min(0)
   @Type(() => Number)
-  @IsOptional()
-  youth?: number = 0;
+  children: number = 0;
 
-  @ApiPropertyOptional({ example: true, default: true, description: 'Buscar com milhas' })
-  @IsBoolean()
-  @IsOptional()
-  award?: boolean = true;
+  @ApiProperty({ example: 0, default: 0 })
+  @IsInt()
+  @Min(0)
+  @Type(() => Number)
+  infants: number = 0;
+}
 
-  @ApiPropertyOptional({ example: false, default: false })
-  @IsBoolean()
-  @IsOptional()
-  stopover?: boolean = false;
+export class TapSearchDto extends FlightSearchDto {
+  // departureDate/finalDate em YYYY-MM-DD herdados de FlightSearchDto.
+  // O crawler TAP (milhas2) faz date-range one-way e normaliza o formato internamente.
+  @ApiProperty({ example: 0, default: 0, description: 'Número de jovens' })
+  @IsInt()
+  @Min(0)
+  @Type(() => Number)
+  youth: number = 0;
 }

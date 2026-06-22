@@ -26,8 +26,51 @@ model User {
   subscriptions    UserSubscription?
   milhasMessages   milhas_message[]
   tripInfo         TripInfo?
+  userSearches     UserSearch[]
 
   @@map("users")
+}
+
+model UserSearch {
+  id              String             @id @default(dbgenerated("gen_random_uuid()"))
+  userId          String
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider        String             @db.VarChar(20)
+  status          UserSearchStatus   @default(pending)
+  priority        Boolean            @default(false)
+  searchTimestamp DateTime           @default(now()) @db.Timestamptz(6)
+  startedAt       DateTime?          @db.Timestamptz(6)
+  completedAt     DateTime?          @db.Timestamptz(6)
+  params          Json
+  errorMessage    String?
+  createdAt       DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime           @default(now()) @updatedAt @db.Timestamptz(6)
+  results         UserSearchResult[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status])
+  @@map("user_searches")
+}
+
+model UserSearchResult {
+  id           String             @id @default(dbgenerated("gen_random_uuid()"))
+  userSearchId String
+  userSearch   UserSearch         @relation(fields: [userSearchId], references: [id], onDelete: Cascade)
+  resultId     String
+  result       FlightSearchResult @relation(fields: [resultId], references: [id], onDelete: Cascade)
+  createdAt    DateTime           @default(now()) @db.Timestamptz(6)
+
+  @@unique([userSearchId, resultId])
+  @@index([userSearchId])
+  @@index([resultId])
+  @@map("user_search_results")
+}
+
+enum UserSearchStatus {
+  pending
+  doing
+  done
+  error
 }
 
 model milhas_message {
@@ -94,6 +137,7 @@ model UserRoutePreference {
   originIata      String         @db.VarChar(10)
   destinationCity String         @db.VarChar(100)
   destinationIata String         @db.VarChar(10)
+  provider        String         @default("smiles") @db.VarChar(20)
   cabinType       CabinType      @default(ANY)
   alertFrequency  AlertFrequency @default(DAILY)
   isActive        Boolean        @default(true)
@@ -124,66 +168,15 @@ model FlightSearchResult {
   economyMinJson   Json?
   firstMinJson     Json?
   premiumMinJson   Json?
-  details           FlightSearchDetail[]
-  userSearchResults UserSearchResult[]
-  histories         FlightSearchResultHistory[]
+  details          FlightSearchDetail[]
+  userSearches     UserSearchResult[]
+  history          FlightSearchResultHistory[]
 
   @@unique([origin, destination, flightDate, provider])
   @@index([origin, destination])
   @@index([flightDate])
   @@index([searchedAt])
   @@map("flight_search_results")
-}
-
-model FlightSearchResultHistory {
-  id               String                     @id @default(dbgenerated("gen_random_uuid()"))
-  originalResultId String?
-  flightDate       DateTime                   @db.Date
-  searchedAt       DateTime
-  snapshotAt       DateTime                   @default(now())
-  origin           String
-  destination      String
-  provider         String
-  economyMinMiles  Int?
-  premiumMinMiles  Int?
-  businessMinMiles Int?
-  firstMinMiles    Int?
-  economyMinJson   Json?
-  premiumMinJson   Json?
-  businessMinJson  Json?
-  firstMinJson     Json?
-  originalResult   FlightSearchResult?        @relation(fields: [originalResultId], references: [id], onDelete: SetNull)
-  detailHistories  FlightSearchDetailHistory[]
-
-  @@map("flight_search_result_history")
-}
-
-model FlightSearchDetailHistory {
-  id               String                    @id @default(dbgenerated("gen_random_uuid()"))
-  resultHistoryId  String
-  uid              String?
-  flightCode       String?
-  airline          String?
-  cabin            String
-  cabinClass       String?
-  availableSeats   Int                       @default(0)
-  stops            Int                       @default(0)
-  departureTime    String
-  departureAirport String
-  arrivalTime      String
-  arrivalAirport   String
-  departureDate    DateTime?
-  arrivalDate      DateTime?
-  durationHours    Int                       @default(0)
-  durationMinutes  Int                       @default(0)
-  miles            Int                       @default(0)
-  price            Decimal?                  @db.Decimal(10, 2)
-  currency         String?
-  route            String
-  legsJson         Json?
-  resultHistory    FlightSearchResultHistory  @relation(fields: [resultHistoryId], references: [id], onDelete: Cascade)
-
-  @@map("flight_search_detail_history")
 }
 
 model FlightSearchDetail {
@@ -215,6 +208,61 @@ model FlightSearchDetail {
   @@index([airline])
   @@index([cabin])
   @@map("flight_search_details")
+}
+
+model FlightSearchResultHistory {
+  id               String                      @id @default(dbgenerated("gen_random_uuid()"))
+  originalResultId String?
+  originalResult   FlightSearchResult?         @relation(fields: [originalResultId], references: [id], onDelete: SetNull)
+  flightDate       DateTime                    @db.Date
+  searchedAt       DateTime
+  snapshotAt       DateTime                    @default(now())
+  origin           String                      @db.VarChar(10)
+  destination      String                      @db.VarChar(10)
+  provider         String                      @db.VarChar(30)
+  economyMinMiles  Int?
+  premiumMinMiles  Int?
+  businessMinMiles Int?
+  firstMinMiles    Int?
+  economyMinJson   Json?
+  premiumMinJson   Json?
+  businessMinJson  Json?
+  firstMinJson     Json?
+  details          FlightSearchDetailHistory[]
+
+  @@index([originalResultId])
+  @@index([origin, destination, flightDate, provider])
+  @@index([snapshotAt])
+  @@map("flight_search_result_history")
+}
+
+model FlightSearchDetailHistory {
+  id               String                    @id @default(dbgenerated("gen_random_uuid()"))
+  resultHistoryId  String
+  resultHistory    FlightSearchResultHistory @relation(fields: [resultHistoryId], references: [id], onDelete: Cascade)
+  uid              String?                   @db.VarChar(500)
+  flightCode       String?                   @db.VarChar(150)
+  airline          String?                   @db.VarChar(100)
+  cabin            String                    @db.VarChar(30)
+  cabinClass       String?                   @db.VarChar(10)
+  availableSeats   Int                       @default(0)
+  stops            Int                       @default(0)
+  departureTime    String                    @db.VarChar(15)
+  departureAirport String                    @db.VarChar(10)
+  arrivalTime      String                    @db.VarChar(15)
+  arrivalAirport   String                    @db.VarChar(10)
+  departureDate    DateTime?
+  arrivalDate      DateTime?
+  durationHours    Int                       @default(0)
+  durationMinutes  Int                       @default(0)
+  miles            Int                       @default(0)
+  price            Decimal?                  @db.Decimal(10, 2)
+  currency         String?                   @db.VarChar(10)
+  route            String                    @db.VarChar(200)
+  legsJson         Json?
+
+  @@index([resultHistoryId])
+  @@map("flight_search_detail_history")
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
@@ -288,42 +336,4 @@ enum ModelProvider {
   claude
   gpt
   gemini
-}
-
-enum UserSearchStatus {
-  pending
-  doing
-  done
-  error
-}
-
-model UserSearch {
-  id              String             @id @default(uuid())
-  userId          String
-  status          UserSearchStatus   @default(pending)
-  provider        String             @db.VarChar(30)
-  params          Json
-  priority        Boolean            @default(false)
-  searchTimestamp DateTime           @default(now()) @db.Timestamptz(6)
-  startedAt       DateTime?          @db.Timestamptz(6)
-  completedAt     DateTime?          @db.Timestamptz(6)
-  errorMessage    String?
-  createdAt       DateTime           @default(now()) @db.Timestamptz(6)
-  updatedAt       DateTime           @default(now()) @updatedAt @db.Timestamptz(6)
-  results         UserSearchResult[]
-
-  @@index([status])
-  @@index([userId])
-  @@map("user_searches")
-}
-
-model UserSearchResult {
-  id                 String             @id @default(uuid())
-  userSearchId       String
-  resultId           String
-  userSearch         UserSearch         @relation(fields: [userSearchId], references: [id], onDelete: Cascade)
-  flightSearchResult FlightSearchResult @relation(fields: [resultId], references: [id], onDelete: Cascade)
-
-  @@unique([userSearchId, resultId])
-  @@map("user_search_results")
 }

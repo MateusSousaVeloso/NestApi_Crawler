@@ -131,6 +131,73 @@ export class FlightHistoryService {
     return cabins;
   }
 
+  private summaryDiffers(
+    existing: {
+      economyMinMiles: number | null;
+      premiumMinMiles: number | null;
+      businessMinMiles: number | null;
+      firstMinMiles: number | null;
+      economyMinJson: unknown;
+      premiumMinJson: unknown;
+      businessMinJson: unknown;
+      firstMinJson: unknown;
+    },
+    next: {
+      economyMinMiles: number | null;
+      premiumMinMiles: number | null;
+      businessMinMiles: number | null;
+      firstMinMiles: number | null;
+      economyMinJson: unknown;
+      premiumMinJson: unknown;
+      businessMinJson: unknown;
+      firstMinJson: unknown;
+    },
+  ): boolean {
+    if (
+      existing.economyMinMiles !== next.economyMinMiles ||
+      existing.premiumMinMiles !== next.premiumMinMiles ||
+      existing.businessMinMiles !== next.businessMinMiles ||
+      existing.firstMinMiles !== next.firstMinMiles
+    ) {
+      return true;
+    }
+    return (
+      JSON.stringify(existing.economyMinJson ?? null) !== JSON.stringify(next.economyMinJson ?? null) ||
+      JSON.stringify(existing.premiumMinJson ?? null) !== JSON.stringify(next.premiumMinJson ?? null) ||
+      JSON.stringify(existing.businessMinJson ?? null) !== JSON.stringify(next.businessMinJson ?? null) ||
+      JSON.stringify(existing.firstMinJson ?? null) !== JSON.stringify(next.firstMinJson ?? null)
+    );
+  }
+
+  private detailsFingerprint(details: any[]): string {
+    const items = (details ?? []).map((d) => ({
+      uid: d.uid ?? null,
+      flightCode: d.flightCode ?? null,
+      airline: d.airline ?? null,
+      cabin: d.cabin ?? null,
+      cabinClass: d.cabinClass ?? null,
+      availableSeats: d.availableSeats ?? 0,
+      stops: d.stops ?? 0,
+      departureTime: d.departureTime ?? null,
+      departureAirport: d.departureAirport ?? null,
+      arrivalTime: d.arrivalTime ?? null,
+      arrivalAirport: d.arrivalAirport ?? null,
+      durationHours: d.durationHours ?? 0,
+      durationMinutes: d.durationMinutes ?? 0,
+      miles: d.miles ?? 0,
+      price: d.price != null ? Number(d.price) : null,
+      currency: d.currency ?? null,
+      route: d.route ?? null,
+      legs: d.legsJson ?? null,
+    }));
+    items.sort((a, b) => {
+      const ka = `${a.uid ?? ''}|${a.flightCode ?? ''}|${a.cabin ?? ''}|${a.departureTime ?? ''}`;
+      const kb = `${b.uid ?? ''}|${b.flightCode ?? ''}|${b.cabin ?? ''}|${b.departureTime ?? ''}`;
+      return ka.localeCompare(kb);
+    });
+    return JSON.stringify(items);
+  }
+
   async saveSearchResults(
     origin: string,
     destination: string,
@@ -158,8 +225,9 @@ export class FlightHistoryService {
       firstMinJson: this.buildMinJson(firstData.flight, origin, destination),
     };
 
+    // Chamado pelo ResultsConsumerService quando o worker termina o crawler.
+    // Falhas aqui são logadas pelo consumer e a UserSearch vira `error`.
     return this.prisma.$transaction(async (tx) => {
-      // Busca o registro atual antes de sobrescrever
       const existing = await tx.flightSearchResult.findUnique({
         where: {
           origin_destination_flightDate_provider: {
@@ -172,9 +240,15 @@ export class FlightHistoryService {
         include: { details: true },
       });
 
-      // Se já existe, salva snapshot do estado anterior
-      if (existing) {
-        const snapshot = await tx.flightSearchResultHistory.create({
+      // Snapshot do registro antigo se houver mudança real (ignora searchedAt)
+      // Compara summary E fingerprint dos details — qualquer voo que mudou (preço/seats/etc) dispara
+      const changed =
+        existing &&
+        (this.summaryDiffers(existing, summaryData) ||
+          this.detailsFingerprint(existing.details) !== this.detailsFingerprint(detailsData));
+
+      if (existing && changed) {
+        await tx.flightSearchResultHistory.create({
           data: {
             originalResultId: existing.id,
             flightDate: existing.flightDate,
@@ -190,38 +264,32 @@ export class FlightHistoryService {
             premiumMinJson: existing.premiumMinJson ?? undefined,
             businessMinJson: existing.businessMinJson ?? undefined,
             firstMinJson: existing.firstMinJson ?? undefined,
+            details: {
+              create: existing.details.map((d) => ({
+                uid: d.uid,
+                flightCode: d.flightCode,
+                airline: d.airline,
+                cabin: d.cabin,
+                cabinClass: d.cabinClass,
+                availableSeats: d.availableSeats,
+                stops: d.stops,
+                departureTime: d.departureTime,
+                departureAirport: d.departureAirport,
+                arrivalTime: d.arrivalTime,
+                arrivalAirport: d.arrivalAirport,
+                departureDate: d.departureDate,
+                arrivalDate: d.arrivalDate,
+                durationHours: d.durationHours,
+                durationMinutes: d.durationMinutes,
+                miles: d.miles,
+                price: d.price,
+                currency: d.currency,
+                route: d.route,
+                legsJson: d.legsJson ?? undefined,
+              })),
+            },
           },
         });
-
-        if (existing.details.length > 0) {
-          await tx.flightSearchDetailHistory.createMany({
-            data: existing.details.map((d) => ({
-              resultHistoryId: snapshot.id,
-              uid: d.uid,
-              flightCode: d.flightCode,
-              airline: d.airline,
-              cabin: d.cabin,
-              cabinClass: d.cabinClass,
-              availableSeats: d.availableSeats,
-              stops: d.stops,
-              departureTime: d.departureTime,
-              departureAirport: d.departureAirport,
-              arrivalTime: d.arrivalTime,
-              arrivalAirport: d.arrivalAirport,
-              departureDate: d.departureDate,
-              arrivalDate: d.arrivalDate,
-              durationHours: d.durationHours,
-              durationMinutes: d.durationMinutes,
-              miles: d.miles,
-              price: d.price,
-              currency: d.currency,
-              route: d.route,
-              legsJson: d.legsJson ?? undefined,
-            })),
-          });
-        }
-
-        this.logger.log(`Snapshot salvo para ${provider} ${normalizedOrigin}->${normalizedDest} ${flightDate} (${existing.details.length} voos)`);
       }
 
       await tx.flightSearchDetail.deleteMany({
@@ -258,7 +326,7 @@ export class FlightHistoryService {
           details: { create: detailsData },
         },
       });
-    }, { timeout: 30000 });
+    });
   }
 
   private buildWhereClause(filter: FlightHistoryFilterDto) {

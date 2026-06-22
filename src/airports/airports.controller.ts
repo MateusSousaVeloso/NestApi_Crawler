@@ -1,9 +1,11 @@
 import { Controller, Get, Query, BadRequestException } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AirportsService } from './airports.service';
 import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
 
 @ApiTags('airports')
 @Controller('airports')
+@Throttle({ default: { ttl: 60000, limit: 200 } })
 export class AirportsController {
   constructor(private readonly airportsService: AirportsService) {}
 
