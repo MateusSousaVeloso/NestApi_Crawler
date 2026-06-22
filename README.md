@@ -21,6 +21,41 @@
   <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
   [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
 
+## CrawlerMilhas — Setup com Docker
+
+### Estrutura esperada
+
+O `docker-compose.yml` deste repositório sobe todos os serviços. Os seguintes repositórios devem estar na **mesma pasta pai**:
+
+```
+milhas/
+├── docker-compose.yml   ← copiar daqui (api-nest/docker-compose.yml)
+├── api-nest/
+├── api-python/
+└── front/
+```
+
+### Como rodar
+
+1. Clone os repositórios na mesma pasta pai
+2. Copie o compose para a raiz:
+```bash
+cp api-nest/docker-compose.yml ./docker-compose.yml
+```
+3. Configure os `.env` de cada serviço
+4. Suba tudo:
+```bash
+docker-compose up --build
+```
+
+| Serviço  | Porta |
+|----------|-------|
+| RabbitMQ | 5672 / 15672 |
+| API Nest | 3000 |
+| Front    | 80 |
+
+---
+
 ## Description
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
