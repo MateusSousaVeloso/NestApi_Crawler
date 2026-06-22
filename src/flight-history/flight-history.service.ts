@@ -158,107 +158,103 @@ export class FlightHistoryService {
       firstMinJson: this.buildMinJson(firstData.flight, origin, destination),
     };
 
-    return this.prisma.$transaction(async (tx) => {
-      // Busca o registro atual antes de sobrescrever
-      const existing = await tx.flightSearchResult.findUnique({
-        where: {
-          origin_destination_flightDate_provider: {
-            origin: normalizedOrigin,
-            destination: normalizedDest,
-            flightDate: parsedDate,
-            provider,
-          },
-        },
-        include: { details: true },
-      });
-
-      // Se já existe, salva snapshot do estado anterior
-      if (existing) {
-        const snapshot = await tx.flightSearchResultHistory.create({
-          data: {
-            originalResultId: existing.id,
-            flightDate: existing.flightDate,
-            searchedAt: existing.searchedAt,
-            origin: existing.origin,
-            destination: existing.destination,
-            provider: existing.provider,
-            economyMinMiles: existing.economyMinMiles,
-            premiumMinMiles: existing.premiumMinMiles,
-            businessMinMiles: existing.businessMinMiles,
-            firstMinMiles: existing.firstMinMiles,
-            economyMinJson: existing.economyMinJson ?? undefined,
-            premiumMinJson: existing.premiumMinJson ?? undefined,
-            businessMinJson: existing.businessMinJson ?? undefined,
-            firstMinJson: existing.firstMinJson ?? undefined,
-          },
-        });
-
-        if (existing.details.length > 0) {
-          await tx.flightSearchDetailHistory.createMany({
-            data: existing.details.map((d) => ({
-              resultHistoryId: snapshot.id,
-              uid: d.uid,
-              flightCode: d.flightCode,
-              airline: d.airline,
-              cabin: d.cabin,
-              cabinClass: d.cabinClass,
-              availableSeats: d.availableSeats,
-              stops: d.stops,
-              departureTime: d.departureTime,
-              departureAirport: d.departureAirport,
-              arrivalTime: d.arrivalTime,
-              arrivalAirport: d.arrivalAirport,
-              departureDate: d.departureDate,
-              arrivalDate: d.arrivalDate,
-              durationHours: d.durationHours,
-              durationMinutes: d.durationMinutes,
-              miles: d.miles,
-              price: d.price,
-              currency: d.currency,
-              route: d.route,
-              legsJson: d.legsJson ?? undefined,
-            })),
-          });
-        }
-
-        this.logger.log(`Snapshot salvo para ${provider} ${normalizedOrigin}->${normalizedDest} ${flightDate} (${existing.details.length} voos)`);
-      }
-
-      await tx.flightSearchDetail.deleteMany({
-        where: {
-          searchResult: {
-            origin: normalizedOrigin,
-            destination: normalizedDest,
-            flightDate: parsedDate,
-            provider,
-          },
-        },
-      });
-
-      return tx.flightSearchResult.upsert({
-        where: {
-          origin_destination_flightDate_provider: {
-            origin: normalizedOrigin,
-            destination: normalizedDest,
-            flightDate: parsedDate,
-            provider,
-          },
-        },
-        update: {
-          searchedAt: new Date(),
-          ...summaryData,
-          details: { create: detailsData },
-        },
-        create: {
-          flightDate: parsedDate,
+    const existing = await this.prisma.flightSearchResult.findUnique({
+      where: {
+        origin_destination_flightDate_provider: {
           origin: normalizedOrigin,
           destination: normalizedDest,
+          flightDate: parsedDate,
           provider,
-          ...summaryData,
-          details: { create: detailsData },
+        },
+      },
+      include: { details: true },
+    });
+
+    if (existing) {
+      const snapshot = await this.prisma.flightSearchResultHistory.create({
+        data: {
+          originalResultId: existing.id,
+          flightDate: existing.flightDate,
+          searchedAt: existing.searchedAt,
+          origin: existing.origin,
+          destination: existing.destination,
+          provider: existing.provider,
+          economyMinMiles: existing.economyMinMiles,
+          premiumMinMiles: existing.premiumMinMiles,
+          businessMinMiles: existing.businessMinMiles,
+          firstMinMiles: existing.firstMinMiles,
+          economyMinJson: existing.economyMinJson ?? undefined,
+          premiumMinJson: existing.premiumMinJson ?? undefined,
+          businessMinJson: existing.businessMinJson ?? undefined,
+          firstMinJson: existing.firstMinJson ?? undefined,
         },
       });
-    }, { timeout: 30000 });
+
+      if (existing.details.length > 0) {
+        await this.prisma.flightSearchDetailHistory.createMany({
+          data: existing.details.map((d) => ({
+            resultHistoryId: snapshot.id,
+            uid: d.uid,
+            flightCode: d.flightCode,
+            airline: d.airline,
+            cabin: d.cabin,
+            cabinClass: d.cabinClass,
+            availableSeats: d.availableSeats,
+            stops: d.stops,
+            departureTime: d.departureTime,
+            departureAirport: d.departureAirport,
+            arrivalTime: d.arrivalTime,
+            arrivalAirport: d.arrivalAirport,
+            departureDate: d.departureDate,
+            arrivalDate: d.arrivalDate,
+            durationHours: d.durationHours,
+            durationMinutes: d.durationMinutes,
+            miles: d.miles,
+            price: d.price,
+            currency: d.currency,
+            route: d.route,
+            legsJson: d.legsJson ?? undefined,
+          })),
+        });
+      }
+
+      this.logger.log(`Snapshot salvo para ${provider} ${normalizedOrigin}->${normalizedDest} ${flightDate} (${existing.details.length} voos)`);
+    }
+
+    await this.prisma.flightSearchDetail.deleteMany({
+      where: {
+        searchResult: {
+          origin: normalizedOrigin,
+          destination: normalizedDest,
+          flightDate: parsedDate,
+          provider,
+        },
+      },
+    });
+
+    return this.prisma.flightSearchResult.upsert({
+      where: {
+        origin_destination_flightDate_provider: {
+          origin: normalizedOrigin,
+          destination: normalizedDest,
+          flightDate: parsedDate,
+          provider,
+        },
+      },
+      update: {
+        searchedAt: new Date(),
+        ...summaryData,
+        details: { create: detailsData },
+      },
+      create: {
+        flightDate: parsedDate,
+        origin: normalizedOrigin,
+        destination: normalizedDest,
+        provider,
+        ...summaryData,
+        details: { create: detailsData },
+      },
+    });
   }
 
   private buildWhereClause(filter: FlightHistoryFilterDto) {
