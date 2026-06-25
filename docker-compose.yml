@@ -20,31 +20,6 @@ services:
         reservations:
           memory: 256m
 
-  crawler:
-    build: ../api-crawler-milhas
-    environment:
-      THREADS_PER_WORKER: 2
-      RABBITMQ_URL: amqp://rabbitmq:5672
-      DISPLAY: ":99"
-    # 1 réplica expõe a porta 8000 (Swagger/FastAPI). Para escalar workers de fila:
-    # docker compose up --scale crawler=N (remova o ports abaixo antes de escalar).
-    deploy:
-      replicas: 1
-      resources:
-        limits:
-          # > shm_size(1g) + ~2 browsers (THREADS_PER_WORKER=2). Suba junto se aumentar as threads.
-          memory: 2g
-          cpus: '1.5'
-        reservations:
-          memory: 512m
-    shm_size: '1gb'
-    ports:
-      - "8000:8000"
-    restart: on-failure
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-
   nestjs:
     build: .
     ports:
