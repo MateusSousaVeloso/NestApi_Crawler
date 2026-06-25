@@ -67,63 +67,8 @@ export class FlightSearchDto {
   orderBy?: OrderBy = OrderBy.PRECO;
 }
 
-export class SmilesSearchDto extends FlightSearchDto {
-  @ApiPropertyOptional({ example: '', description: 'Número de membro Smiles (opcional)' })
-  @IsString()
-  @IsOptional()
-  memberNumber?: string;
-}
-
+export class SmilesSearchDto extends FlightSearchDto {}
 export class AzulSearchDto extends FlightSearchDto {}
-
-export class QatarSearchDto extends FlightSearchDto {
-  @ApiProperty({ example: '2026-06-22', description: 'Data de retorno (YYYY-MM-DD)' })
-  @IsDateString()
-  @IsNotEmpty()
-  declare finalDate: string;
-}
-
-export class IberiaSearchDto {
-  @ApiProperty({ example: 'SAO' })
-  @IsString()
-  @IsNotEmpty()
-  origin: string;
-
-  @ApiProperty({ example: 'MAD' })
-  @IsString()
-  @IsNotEmpty()
-  destination: string;
-
-  @ApiProperty({ example: '2026-06-15', description: 'Data de partida (YYYY-MM-DD)' })
-  @IsDateString()
-  @IsNotEmpty()
-  departureDate: string;
-
-  @ApiProperty({ example: 1, default: 1 })
-  @IsInt()
-  @Min(1)
-  @Type(() => Number)
-  adults: number = 1;
-
-  @ApiProperty({ example: 0, default: 0 })
-  @IsInt()
-  @Min(0)
-  @Type(() => Number)
-  children: number = 0;
-
-  @ApiProperty({ example: 0, default: 0 })
-  @IsInt()
-  @Min(0)
-  @Type(() => Number)
-  infants: number = 0;
-}
-
-export class TapSearchDto extends FlightSearchDto {
-  // departureDate/finalDate em YYYY-MM-DD herdados de FlightSearchDto.
-  // O crawler TAP (milhas2) faz date-range one-way e normaliza o formato internamente.
-  @ApiProperty({ example: 0, default: 0, description: 'Número de jovens' })
-  @IsInt()
-  @Min(0)
-  @Type(() => Number)
-  youth: number = 0;
-}
+export class QatarSearchDto extends FlightSearchDto {}
+export class IberiaSearchDto extends FlightSearchDto {}
+export class TapSearchDto extends FlightSearchDto {}
