@@ -8,6 +8,7 @@ import { CrawlerProvider } from './crawlers/provider';
 import { PROVIDER_REGISTRY } from './crawlers/provider.registry';
 import {
   AzulSearchDto,
+  FinnairSearchDto,
   IberiaSearchDto,
   QatarSearchDto,
   SmilesSearchDto,
@@ -82,5 +83,14 @@ export class SearchController {
   @ApiBody({ type: PROVIDER_REGISTRY[CrawlerProvider.TAP].dto })
   searchTap(@Req() req: AuthenticatedRequest, @Body() dto: TapSearchDto) {
     return this.enqueue(req, CrawlerProvider.TAP, { ...dto });
+  }
+
+  @Post('finnair')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({ summary: 'Agenda busca na Finnair (priority_queue). Retorna jobId.' })
+  @ApiResponse({ status: 202, description: 'Job criado, status=pending.' })
+  @ApiBody({ type: PROVIDER_REGISTRY[CrawlerProvider.FINNAIR].dto })
+  searchFinnair(@Req() req: AuthenticatedRequest, @Body() dto: FinnairSearchDto) {
+    return this.enqueue(req, CrawlerProvider.FINNAIR, { ...dto });
   }
 }

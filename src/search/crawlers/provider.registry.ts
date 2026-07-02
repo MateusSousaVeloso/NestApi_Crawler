@@ -1,12 +1,13 @@
 import { Type } from '@nestjs/common';
 import { CrawlerProvider } from './provider';
 import { ParsedFlight } from '../search.interfaces';
-import { AzulSearchDto, IberiaSearchDto, QatarSearchDto, SmilesSearchDto, TapSearchDto } from '../search.dto';
+import { AzulSearchDto, FinnairSearchDto, IberiaSearchDto, QatarSearchDto, SmilesSearchDto, TapSearchDto } from '../search.dto';
 import { parseSmilesResponse } from './parsers/smiles.parser';
 import { parseAzulResponse } from './parsers/azul.parser';
 import { parseQatarResponse } from './parsers/qatar.parser';
 import { parseIberiaResponse } from './parsers/iberia.parser';
 import { parseTapResponse } from './parsers/tap.parser';
+import { parseFinnairResponse } from './parsers/finnair.parser';
 
 export interface ProviderConfig {
   label: string;
@@ -39,5 +40,10 @@ export const PROVIDER_REGISTRY: Record<CrawlerProvider, ProviderConfig> = {
     label: 'Tap',
     dto: TapSearchDto,
     parse: parseTapResponse,
+  },
+  [CrawlerProvider.FINNAIR]: {
+    label: 'Finnair',
+    dto: FinnairSearchDto,
+    parse: parseFinnairResponse,
   },
 };

@@ -53,3 +53,4 @@ export class AzulSearchDto extends FlightSearchDto {}
 export class QatarSearchDto extends FlightSearchDto {}
 export class IberiaSearchDto extends FlightSearchDto {}
 export class TapSearchDto extends FlightSearchDto {}
+export class FinnairSearchDto extends FlightSearchDto {}
