@@ -3,7 +3,7 @@ import { Throttle } from '@nestjs/throttler';
 import { AirportsService } from './airports.service';
 import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
 
-@ApiTags('airports')
+@ApiTags('Airports')
 @Controller('airports')
 @Throttle({ default: { ttl: 60000, limit: 200 } })
 export class AirportsController {

@@ -3,11 +3,8 @@ import { QUEUE_RESULTS, RabbitMQService } from './rabbitmq.service';
 import { UserSearchesService } from '../user-searches/user-searches.service';
 import { FlightHistoryService } from '../flight-history/flight-history.service';
 import { PrismaService } from '../database/prisma.service';
-import { parseSmilesResponse } from '../search/crawlers/parsers/smiles.parser';
-import { parseAzulResponse } from '../search/crawlers/parsers/azul.parser';
-import { parseQatarResponse } from '../search/crawlers/parsers/qatar.parser';
-import { parseIberiaResponse } from '../search/crawlers/parsers/iberia.parser';
-import { parseTapResponse } from '../search/crawlers/parsers/tap.parser';
+import { isCrawlerProvider } from '../search/crawlers/provider';
+import { PROVIDER_REGISTRY } from '../search/crawlers/provider.registry';
 
 type ResultEvent =
   | { event: 'started'; userSearchId: string; startedAt: string }
@@ -20,14 +17,6 @@ type ResultEvent =
       data?: Record<string, any> | null;
       error?: string | null;
     };
-
-const PROVIDER_LABEL: Record<string, string> = {
-  smiles: 'Smiles',
-  azul: 'Azul',
-  qatar: 'Qatar',
-  iberia: 'Iberia',
-  tap: 'Tap',
-};
 
 @Injectable()
 export class ResultsConsumerService implements OnModuleInit {
@@ -99,13 +88,17 @@ export class ResultsConsumerService implements OnModuleInit {
     destination: string,
     raw: Record<string, any>,
   ): Promise<string[]> {
-    const providerLabel = PROVIDER_LABEL[provider] ?? provider;
+    if (!isCrawlerProvider(provider)) {
+      this.logger.warn(`Provider desconhecido: ${provider}`);
+      return [];
+    }
+    const { label: providerLabel, parse } = PROVIDER_REGISTRY[provider];
     const resultIds: string[] = [];
 
     for (const [date, rawData] of Object.entries(raw)) {
       if (!rawData || typeof rawData !== 'object' || 'error' in rawData) continue;
 
-      const flights = this.parseByProvider(provider, rawData);
+      const flights = parse(rawData);
       if (flights.length === 0) continue;
 
       try {
@@ -125,25 +118,5 @@ export class ResultsConsumerService implements OnModuleInit {
     }
 
     return resultIds;
-  }
-
-  private parseByProvider(provider: string, rawData: any) {
-    switch (provider) {
-      case 'smiles':
-        return parseSmilesResponse(rawData);
-      case 'azul':
-        // milhas2 retorna só milhas por data (sem cash)
-        return parseAzulResponse(rawData, null);
-      case 'qatar':
-        // milhas2 retorna só award por data (sem cash)
-        return parseQatarResponse(rawData, null);
-      case 'iberia':
-        return parseIberiaResponse(rawData);
-      case 'tap':
-        // milhas2 retorna { status, data } por data; parseTapResponse navega .data via findInner
-        return parseTapResponse(rawData);
-      default:
-        return [];
-    }
   }
 }

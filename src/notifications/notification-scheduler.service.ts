@@ -2,12 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../database/prisma.service';
 import { UserSearchesService } from '../user-searches/user-searches.service';
-import {
-  CRAWLER_PROVIDERS,
-  type CrawlerProvider,
-} from '../route-preferences/route-preferences.dto';
+import { CrawlerProvider, isCrawlerProvider } from '../search/crawlers/provider';
 import { AlertFrequency, SubscriptionStatus } from '../../prisma/generated/client';
-import { CabinClass, OrderBy } from '../search/search.dto';
+import { CabinClass } from '../search/search.dto';
 
 interface RouteRow {
   id: string;
@@ -124,7 +121,7 @@ export class NotificationSchedulerService {
     }
 
     const provider = this.resolveProvider(route.provider);
-    const params = this.buildParams(provider, route, dates);
+    const params = this.buildParams(route, dates);
 
     const job = await this.userSearches.create({
       userId: route.userId,
@@ -139,51 +136,23 @@ export class NotificationSchedulerService {
   }
 
   private resolveProvider(raw: string): CrawlerProvider {
-    return (CRAWLER_PROVIDERS as readonly string[]).includes(raw)
-      ? (raw as CrawlerProvider)
-      : 'smiles';
+    return isCrawlerProvider(raw) ? raw : CrawlerProvider.SMILES;
   }
 
-  private buildParams(
-    provider: CrawlerProvider,
-    route: RouteRow,
-    dates: string[],
-  ): Record<string, unknown> {
+  // Payload igual para todos os providers: o crawler Python só processa
+  // origin, destination, departureDate, finalDate e cabin. Campos que um
+  // provider específico não usa (ex: Iberia não tem `cabin`) são
+  // silenciosamente ignorados pelo Pydantic do lado do worker.
+  private buildParams(route: RouteRow, dates: string[]): Record<string, unknown> {
     const firstDate = dates[0];
     const lastDate = dates.length > 1 ? dates.at(-1) : undefined;
     const cabin = CABIN_MAP[route.cabinType] || CabinClass.ALL;
 
-    if (provider === 'tap') {
-      // crawler TAP (milhas2) usa departureDate/finalDate (YYYY-MM-DD) e faz date-range one-way
-      const tap: Record<string, unknown> = {
-        origin: route.originIata,
-        destination: route.destinationIata,
-        departureDate: firstDate,
-        youth: 0,
-        cabin,
-      };
-      if (lastDate) tap.finalDate = lastDate;
-      return tap;
-    }
-
-    if (provider === 'iberia') {
-      // crawler Iberia (milhas2) suporta date-range via finalDate
-      const iberia: Record<string, unknown> = {
-        origin: route.originIata,
-        destination: route.destinationIata,
-        departureDate: firstDate,
-      };
-      if (lastDate) iberia.finalDate = lastDate;
-      return iberia;
-    }
-
-    // smiles, azul, qatar — FlightSearchDto base
     const params: Record<string, unknown> = {
       origin: route.originIata,
       destination: route.destinationIata,
       departureDate: firstDate,
       cabin,
-      orderBy: OrderBy.PRECO,
     };
     if (lastDate) params.finalDate = lastDate;
     return params;

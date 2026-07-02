@@ -1,5 +1,8 @@
 import { IsEnum, IsOptional } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { CrawlerProvider } from '../search/crawlers/provider';
+
+export { CrawlerProvider };
 
 export enum UserSearchStatusFilter {
   PENDING = 'pending',
@@ -14,9 +17,10 @@ export class ListUserSearchesDto {
   @IsOptional()
   status?: UserSearchStatusFilter;
 
-  @ApiPropertyOptional({ example: 'smiles', description: 'Provider (smiles, azul, qatar, iberia, tap)' })
+  @ApiPropertyOptional({ enum: CrawlerProvider, description: 'Provider' })
+  @IsEnum(CrawlerProvider)
   @IsOptional()
-  provider?: string;
+  provider?: CrawlerProvider;
 
   @ApiPropertyOptional({ example: '20', description: 'Itens por página (padrão 20, máx 100)' })
   @IsOptional()
@@ -26,5 +30,3 @@ export class ListUserSearchesDto {
   @IsOptional()
   cursor?: string;
 }
-
-export type CrawlerProvider = 'smiles' | 'azul' | 'qatar' | 'iberia' | 'tap';

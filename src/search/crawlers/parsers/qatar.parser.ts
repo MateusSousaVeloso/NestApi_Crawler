@@ -1,12 +1,5 @@
 import { ParsedFlight, FlightLeg } from '../../search.interfaces';
 
-const CASH_FAMILY_MAP: Record<string, 'ECONOMY' | 'BUSINESS'> = {
-  ECONOMY_CONVENIENCE: 'ECONOMY',
-  ECONOMY_COMFORT: 'ECONOMY',
-  BUSINESS_COMFORT: 'BUSINESS',
-  BUSINESS_ELITE: 'BUSINESS',
-};
-
 const CABIN_MAP: Record<string, string> = {
   ECONOMY: 'ECONOMIC',
   BUSINESS: 'BUSINESS',
@@ -103,38 +96,6 @@ function buildFlight(ctx: OfferContext, cabin: string, uid: string): ParsedFligh
   return flight;
 }
 
-function parseCashResponse(data: any): Map<string, { price: number; seats: number }> {
-  const result = new Map<string, { price: number; seats: number }>();
-  if (!data?.flightOffers) return result;
-
-  for (const offer of data.flightOffers || []) {
-    const ctx = extractOfferContext(offer);
-    if (!ctx) continue;
-
-    const best: Record<string, { price: number; seats: number }> = {};
-    for (const fare of offer.fareOffers || []) {
-      const broad = CASH_FAMILY_MAP[fare.fareFamilyCode];
-      if (!broad) continue;
-      const seats = fare.availableSeats ?? 0;
-      if (!seats) continue;
-      const priceBlock = fare.price || {};
-      const priceRaw = priceBlock.total ?? priceBlock.base ?? 0;
-      const price = Number(priceRaw);
-      if (!price || price <= 0) continue;
-      if (!best[broad] || price < best[broad].price) {
-        best[broad] = { price: Math.round(price * 100) / 100, seats };
-      }
-    }
-
-    for (const [broad, entry] of Object.entries(best)) {
-      const uid = `${ctx.uidKey}|${ctx.departureDatetime}_${broad}`;
-      result.set(uid, entry);
-    }
-  }
-
-  return result;
-}
-
 function parseAwardResponse(data: any): ParsedFlight[] {
   if (!data?.flightOffers) return [];
   const flights: ParsedFlight[] = [];
@@ -168,20 +129,6 @@ function parseAwardResponse(data: any): ParsedFlight[] {
   return flights;
 }
 
-export function parseQatarResponse(awardData: any, cashData: any): ParsedFlight[] {
-  const flights = parseAwardResponse(awardData);
-  if (!cashData) return flights;
-
-  const cashByUid = parseCashResponse(cashData);
-
-  for (const flight of flights) {
-    const cashKey = flight.uid;
-    const cashEntry = cashByUid.get(cashKey);
-    if (cashEntry) {
-      flight.price = cashEntry.price;
-      flight.currency = 'BRL';
-    }
-  }
-
-  return flights;
+export function parseQatarResponse(awardData: any): ParsedFlight[] {
+  return parseAwardResponse(awardData);
 }

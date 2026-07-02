@@ -4,7 +4,8 @@ import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AccessTokenGuard } from '../common/guards/accessToken.guard';
 import { UserSearchesService } from '../user-searches/user-searches.service';
-import type { CrawlerProvider } from '../user-searches/user-searches.dto';
+import { CrawlerProvider } from './crawlers/provider';
+import { PROVIDER_REGISTRY } from './crawlers/provider.registry';
 import {
   AzulSearchDto,
   IberiaSearchDto,
@@ -42,44 +43,44 @@ export class SearchController {
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({ summary: 'Agenda busca na Smiles (priority_queue). Retorna jobId.' })
   @ApiResponse({ status: 202, description: 'Job criado, status=pending.' })
-  @ApiBody({ type: SmilesSearchDto })
+  @ApiBody({ type: PROVIDER_REGISTRY[CrawlerProvider.SMILES].dto })
   searchSmiles(@Req() req: AuthenticatedRequest, @Body() dto: SmilesSearchDto) {
-    return this.enqueue(req, 'smiles', { ...dto });
+    return this.enqueue(req, CrawlerProvider.SMILES, { ...dto });
   }
 
   @Post('azul')
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({ summary: 'Agenda busca na Azul (priority_queue). Retorna jobId.' })
   @ApiResponse({ status: 202, description: 'Job criado, status=pending.' })
-  @ApiBody({ type: AzulSearchDto })
+  @ApiBody({ type: PROVIDER_REGISTRY[CrawlerProvider.AZUL].dto })
   searchAzul(@Req() req: AuthenticatedRequest, @Body() dto: AzulSearchDto) {
-    return this.enqueue(req, 'azul', { ...dto });
+    return this.enqueue(req, CrawlerProvider.AZUL, { ...dto });
   }
 
   @Post('qatar')
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({ summary: 'Agenda busca na Qatar (priority_queue). Retorna jobId.' })
   @ApiResponse({ status: 202, description: 'Job criado, status=pending.' })
-  @ApiBody({ type: QatarSearchDto })
+  @ApiBody({ type: PROVIDER_REGISTRY[CrawlerProvider.QATAR].dto })
   searchQatar(@Req() req: AuthenticatedRequest, @Body() dto: QatarSearchDto) {
-    return this.enqueue(req, 'qatar', { ...dto });
+    return this.enqueue(req, CrawlerProvider.QATAR, { ...dto });
   }
 
   @Post('iberia')
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({ summary: 'Agenda busca na Iberia (priority_queue). Retorna jobId.' })
   @ApiResponse({ status: 202, description: 'Job criado, status=pending.' })
-  @ApiBody({ type: IberiaSearchDto })
+  @ApiBody({ type: PROVIDER_REGISTRY[CrawlerProvider.IBERIA].dto })
   searchIberia(@Req() req: AuthenticatedRequest, @Body() dto: IberiaSearchDto) {
-    return this.enqueue(req, 'iberia', { ...dto });
+    return this.enqueue(req, CrawlerProvider.IBERIA, { ...dto });
   }
 
   @Post('tap')
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({ summary: 'Agenda busca na TAP (priority_queue). Retorna jobId.' })
   @ApiResponse({ status: 202, description: 'Job criado, status=pending.' })
-  @ApiBody({ type: TapSearchDto })
+  @ApiBody({ type: PROVIDER_REGISTRY[CrawlerProvider.TAP].dto })
   searchTap(@Req() req: AuthenticatedRequest, @Body() dto: TapSearchDto) {
-    return this.enqueue(req, 'tap', { ...dto });
+    return this.enqueue(req, CrawlerProvider.TAP, { ...dto });
   }
 }

@@ -1,9 +1,9 @@
 import { IsString, IsNotEmpty, IsEnum, IsOptional, IsBoolean, IsDateString, IsIn } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { CabinType, AlertFrequency } from '../../prisma/generated/client';
+import { CRAWLER_PROVIDERS, CrawlerProvider } from '../search/crawlers/provider';
 
-export const CRAWLER_PROVIDERS = ['smiles', 'azul', 'qatar', 'iberia', 'tap'] as const;
-export type CrawlerProvider = (typeof CRAWLER_PROVIDERS)[number];
+export { CRAWLER_PROVIDERS, CrawlerProvider };
 
 export class CreateRoutePreferenceDto {
   @ApiProperty({ example: 'São Paulo', description: 'Nome da cidade de origem' })
@@ -31,9 +31,9 @@ export class CreateRoutePreferenceDto {
     default: 'smiles',
     description: 'Provedor da pesquisa (smiles, azul, qatar, iberia, tap)',
   })
-  @IsIn(CRAWLER_PROVIDERS as unknown as string[])
+  @IsIn(CRAWLER_PROVIDERS)
   @IsOptional()
-  provider?: CrawlerProvider = 'smiles';
+  provider?: CrawlerProvider = CrawlerProvider.SMILES;
 
   @ApiPropertyOptional({
     enum: CabinType,
