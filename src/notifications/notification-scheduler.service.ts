@@ -159,9 +159,6 @@ export class NotificationSchedulerService {
         origin: route.originIata,
         destination: route.destinationIata,
         departureDate: firstDate,
-        adults: 1,
-        children: 0,
-        infants: 0,
         youth: 0,
         cabin,
       };
@@ -175,9 +172,6 @@ export class NotificationSchedulerService {
         origin: route.originIata,
         destination: route.destinationIata,
         departureDate: firstDate,
-        adults: 1,
-        children: 0,
-        infants: 0,
       };
       if (lastDate) iberia.finalDate = lastDate;
       return iberia;
@@ -188,9 +182,6 @@ export class NotificationSchedulerService {
       origin: route.originIata,
       destination: route.destinationIata,
       departureDate: firstDate,
-      adults: 1,
-      children: 0,
-      infants: 0,
       cabin,
       orderBy: OrderBy.PRECO,
     };
