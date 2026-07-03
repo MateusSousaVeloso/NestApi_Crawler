@@ -7,6 +7,7 @@ export enum CrawlerProvider {
   IBERIA = 'iberia',
   TAP = 'tap',
   FINNAIR = 'finnair',
+  AIREUROPA = 'aireuropa',
 }
 
 export const CRAWLER_PROVIDERS = Object.values(CrawlerProvider);
