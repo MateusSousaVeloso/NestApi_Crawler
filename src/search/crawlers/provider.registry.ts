@@ -1,7 +1,7 @@
 import { Type } from '@nestjs/common';
 import { CrawlerProvider } from './provider';
 import { ParsedFlight } from '../search.interfaces';
-import { AirEuropaSearchDto, AzulSearchDto, FinnairSearchDto, IberiaSearchDto, QatarSearchDto, SmilesSearchDto, TapSearchDto } from '../search.dto';
+import { AASearchDto, AirEuropaSearchDto, AzulSearchDto, FinnairSearchDto, IberiaSearchDto, QatarSearchDto, SmilesSearchDto, TapSearchDto } from '../search.dto';
 import { parseSmilesResponse } from './parsers/smiles.parser';
 import { parseAzulResponse } from './parsers/azul.parser';
 import { parseQatarResponse } from './parsers/qatar.parser';
@@ -9,6 +9,7 @@ import { parseIberiaResponse } from './parsers/iberia.parser';
 import { parseTapResponse } from './parsers/tap.parser';
 import { parseFinnairResponse } from './parsers/finnair.parser';
 import { parseAirEuropaResponse } from './parsers/aireuropa.parser';
+import { parseAAResponse } from './parsers/aa.parser';
 
 export interface ProviderConfig {
   label: string;
@@ -51,5 +52,10 @@ export const PROVIDER_REGISTRY: Record<CrawlerProvider, ProviderConfig> = {
     label: 'Air Europa',
     dto: AirEuropaSearchDto,
     parse: parseAirEuropaResponse,
+  },
+  [CrawlerProvider.AA]: {
+    label: 'American Airlines',
+    dto: AASearchDto,
+    parse: parseAAResponse,
   },
 };

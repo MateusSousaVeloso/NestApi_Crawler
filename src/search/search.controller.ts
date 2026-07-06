@@ -7,6 +7,7 @@ import { UserSearchesService } from '../user-searches/user-searches.service';
 import { CrawlerProvider } from './crawlers/provider';
 import { PROVIDER_REGISTRY } from './crawlers/provider.registry';
 import {
+  AASearchDto,
   AirEuropaSearchDto,
   AzulSearchDto,
   FinnairSearchDto,
@@ -102,5 +103,14 @@ export class SearchController {
   @ApiBody({ type: PROVIDER_REGISTRY[CrawlerProvider.AIREUROPA].dto })
   searchAirEuropa(@Req() req: AuthenticatedRequest, @Body() dto: AirEuropaSearchDto) {
     return this.enqueue(req, CrawlerProvider.AIREUROPA, { ...dto });
+  }
+
+  @Post('aa')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({ summary: 'Agenda busca na American Airlines (priority_queue). Retorna jobId.' })
+  @ApiResponse({ status: 202, description: 'Job criado, status=pending.' })
+  @ApiBody({ type: PROVIDER_REGISTRY[CrawlerProvider.AA].dto })
+  searchAA(@Req() req: AuthenticatedRequest, @Body() dto: AASearchDto) {
+    return this.enqueue(req, CrawlerProvider.AA, { ...dto });
   }
 }
