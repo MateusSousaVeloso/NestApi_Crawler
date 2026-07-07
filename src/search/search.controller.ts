@@ -10,6 +10,7 @@ import {
   AASearchDto,
   AirEuropaSearchDto,
   AzulSearchDto,
+  CopaSearchDto,
   FinnairSearchDto,
   IberiaSearchDto,
   QatarSearchDto,
@@ -112,5 +113,14 @@ export class SearchController {
   @ApiBody({ type: PROVIDER_REGISTRY[CrawlerProvider.AA].dto })
   searchAA(@Req() req: AuthenticatedRequest, @Body() dto: AASearchDto) {
     return this.enqueue(req, CrawlerProvider.AA, { ...dto });
+  }
+
+  @Post('copa')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({ summary: 'Agenda busca na Copa Airlines (priority_queue). Retorna jobId.' })
+  @ApiResponse({ status: 202, description: 'Job criado, status=pending.' })
+  @ApiBody({ type: PROVIDER_REGISTRY[CrawlerProvider.COPA].dto })
+  searchCopa(@Req() req: AuthenticatedRequest, @Body() dto: CopaSearchDto) {
+    return this.enqueue(req, CrawlerProvider.COPA, { ...dto });
   }
 }

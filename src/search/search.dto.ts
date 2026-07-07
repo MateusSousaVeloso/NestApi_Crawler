@@ -56,3 +56,4 @@ export class TapSearchDto extends FlightSearchDto {}
 export class FinnairSearchDto extends FlightSearchDto {}
 export class AirEuropaSearchDto extends FlightSearchDto {}
 export class AASearchDto extends FlightSearchDto {}
+export class CopaSearchDto extends FlightSearchDto {}
