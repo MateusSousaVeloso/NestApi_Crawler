@@ -33,6 +33,15 @@ interface FinnairOutbound {
   quotas?: Record<string, number | null>;
 }
 
+function resolveSegmentAirline(
+  seg: FinnairItinerarySegment,
+  airlines: Record<string, { name?: string }>,
+): string {
+  const code = seg.operatingAirline?.code;
+  if (code && airlines[code]?.name) return airlines[code].name as string;
+  return seg.operatingAirline?.name || code || '';
+}
+
 function resolveAirlineName(
   outbound: FinnairOutbound,
   airlines: Record<string, { name?: string }>,
@@ -49,12 +58,16 @@ function buildFlightCode(outbound: FinnairOutbound): string {
     .join(', ');
 }
 
-function buildLegs(outbound: FinnairOutbound): FlightLeg[] | undefined {
+function buildLegs(
+  outbound: FinnairOutbound,
+  airlines: Record<string, { name?: string }>,
+): FlightLeg[] | undefined {
   const itinerary = outbound.itinerary || [];
   if (itinerary.length <= 1) return undefined;
   return itinerary.map((seg) => ({
     flightCode: seg.flightNumber || '',
     cabin: '',
+    airline: resolveSegmentAirline(seg, airlines),
     aircraft: seg.aircraftName,
     departure: {
       date: outbound.departure?.dateTime || '',
@@ -113,7 +126,7 @@ export function parseFinnairResponse(data: any): ParsedFlight[] {
         currency,
       };
 
-      const legs = buildLegs(outbound);
+      const legs = buildLegs(outbound, airlines);
       if (legs) flight.legs = legs;
 
       flights.push(flight);

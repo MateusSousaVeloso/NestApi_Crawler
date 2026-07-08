@@ -1,6 +1,7 @@
 export interface FlightLeg {
   flightCode: string;
   cabin: string;
+  airline?: string;
   aircraft?: string;
   departure: {
     date: string;

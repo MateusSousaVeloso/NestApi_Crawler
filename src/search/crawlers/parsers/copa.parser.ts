@@ -68,6 +68,7 @@ function buildLegs(flights: CopaFlight[]): FlightLeg[] | undefined {
   return flights.map((f) => ({
     flightCode: `${f.marketingCarrier?.airlineCode || ''}${f.marketingCarrier?.flightNumber || ''}`,
     cabin: '',
+    airline: f.operatingCarrier?.airlineName || f.marketingCarrier?.airlineName,
     departure: {
       date: combineDateTime(f.departure),
       airport: f.departure?.airportCode || '',

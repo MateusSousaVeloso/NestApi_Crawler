@@ -50,6 +50,7 @@ function buildLegs(segments: AASegment[]): FlightLeg[] | undefined {
   return segments.map((seg) => ({
     flightCode: `${seg.flight?.carrierCode || ''}${seg.flight?.flightNumber || ''}`,
     cabin: '',
+    airline: seg.flight?.carrierName,
     departure: {
       date: seg.departureDateTime || '',
       airport: seg.origin?.code || '',
