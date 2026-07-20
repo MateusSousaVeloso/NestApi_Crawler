@@ -17,9 +17,12 @@ interface FinnairOffer {
 }
 
 interface FinnairItinerarySegment {
+  type?: string;
   flightNumber?: string;
   operatingAirline?: { code?: string; name?: string };
   aircraftName?: string;
+  departure?: { dateTime?: string; locationCode?: string };
+  arrival?: { dateTime?: string; locationCode?: string };
 }
 
 interface FinnairOutbound {
@@ -31,6 +34,10 @@ interface FinnairOutbound {
   operatingAirlineCodes?: string[];
   uniqueAirlineNames?: string[];
   quotas?: Record<string, number | null>;
+}
+
+function flightSegments(outbound: FinnairOutbound): FinnairItinerarySegment[] {
+  return (outbound.itinerary || []).filter((seg) => seg.type === 'FLIGHT' || seg.flightNumber);
 }
 
 function resolveSegmentAirline(
@@ -46,13 +53,14 @@ function resolveAirlineName(
   outbound: FinnairOutbound,
   airlines: Record<string, { name?: string }>,
 ): string {
-  const code = outbound.operatingAirlineCodes?.[0] || outbound.itinerary?.[0]?.operatingAirline?.code;
+  const firstSeg = flightSegments(outbound)[0];
+  const code = outbound.operatingAirlineCodes?.[0] || firstSeg?.operatingAirline?.code;
   if (code && airlines[code]?.name) return airlines[code].name as string;
-  return outbound.uniqueAirlineNames?.[0] || outbound.itinerary?.[0]?.operatingAirline?.name || code || '';
+  return outbound.uniqueAirlineNames?.[0] || firstSeg?.operatingAirline?.name || code || '';
 }
 
 function buildFlightCode(outbound: FinnairOutbound): string {
-  return (outbound.itinerary || [])
+  return flightSegments(outbound)
     .map((seg) => seg.flightNumber || '')
     .filter(Boolean)
     .join(', ');
@@ -62,20 +70,20 @@ function buildLegs(
   outbound: FinnairOutbound,
   airlines: Record<string, { name?: string }>,
 ): FlightLeg[] | undefined {
-  const itinerary = outbound.itinerary || [];
-  if (itinerary.length <= 1) return undefined;
-  return itinerary.map((seg) => ({
+  const segments = flightSegments(outbound);
+  if (segments.length <= 1) return undefined;
+  return segments.map((seg) => ({
     flightCode: seg.flightNumber || '',
     cabin: '',
     airline: resolveSegmentAirline(seg, airlines),
     aircraft: seg.aircraftName,
     departure: {
-      date: outbound.departure?.dateTime || '',
-      airport: outbound.departure?.locationCode || '',
+      date: seg.departure?.dateTime || '',
+      airport: seg.departure?.locationCode || '',
     },
     arrival: {
-      date: outbound.arrival?.dateTime || '',
-      airport: outbound.arrival?.locationCode || '',
+      date: seg.arrival?.dateTime || '',
+      airport: seg.arrival?.locationCode || '',
     },
   }));
 }
