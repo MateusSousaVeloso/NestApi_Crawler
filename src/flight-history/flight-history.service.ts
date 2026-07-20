@@ -34,20 +34,26 @@ export class FlightHistoryService {
 
   private extractTime(dateStr: string | null | undefined): string {
     if (!dateStr) return '00:00';
-    const d = new Date(dateStr);
-    if (Number.isNaN(d.getTime())) return '00:00';
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    const match = /[T ](\d{2}):(\d{2})/.exec(dateStr);
+    return match ? `${match[1]}:${match[2]}` : '00:00';
+  }
+
+  private extractDateOnly(dateStr: string | null | undefined): string | null {
+    if (!dateStr) return null;
+    const match = /^(\d{4}-\d{2}-\d{2})/.exec(dateStr);
+    return match ? match[1] : null;
   }
 
   private getDayOffset(depStr: string | null, arrStr: string | null): string {
-    if (!depStr || !arrStr) return '';
-    const dep = new Date(depStr);
-    const arr = new Date(arrStr);
+    const depDate = this.extractDateOnly(depStr);
+    const arrDate = this.extractDateOnly(arrStr);
+    if (!depDate || !arrDate) return '';
+
+    const dep = new Date(`${depDate}T00:00:00Z`);
+    const arr = new Date(`${arrDate}T00:00:00Z`);
     if (Number.isNaN(dep.getTime()) || Number.isNaN(arr.getTime())) return '';
 
-    const depDay = new Date(dep.getFullYear(), dep.getMonth(), dep.getDate());
-    const arrDay = new Date(arr.getFullYear(), arr.getMonth(), arr.getDate());
-    const diffDays = Math.round((arrDay.getTime() - depDay.getTime()) / (1000 * 60 * 60 * 24));
+    const diffDays = Math.round((arr.getTime() - dep.getTime()) / (1000 * 60 * 60 * 24));
 
     if (diffDays > 0) return `+${diffDays}`;
     return '';
