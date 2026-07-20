@@ -29,6 +29,7 @@ export function parseIberiaResponse(data: any): ParsedFlight[] {
         const legs: FlightLeg[] = segs.map((s: any) => ({
           flightCode: `${s.flight?.marketingCarrier?.code ?? ''}${s.flight?.marketingFlightNumber ?? ''}`,
           cabin,
+          airline: s.flight?.marketingCarrier?.name,
           aircraft: s.flight?.aircraft?.description ?? '',
           departure: {
             date:    s.departureDateTime ?? '',

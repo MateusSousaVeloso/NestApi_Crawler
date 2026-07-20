@@ -56,6 +56,7 @@ export function parseSmilesResponse(data: any): ParsedFlight[] {
         return {
           flightCode: legCode.trim(),
           cabin,
+          airline: leg.operationAirline?.name || leg.marketingAirline?.name,
           departure: {
             date: leg.departure?.date || '',
             airport: leg.departure?.airport?.code || '',

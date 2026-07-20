@@ -66,6 +66,7 @@ function extractJourneyFields(journey: any): ExtractedFields {
       return {
         flightCode: `${segId.carrierCode || ''}${segId.flightNumber || ''}`.trim(),
         cabin: 'ECONOMIC',
+        airline: 'Azul',
         departure: {
           date: segId.std || '',
           airport: segId.departureStation || '',

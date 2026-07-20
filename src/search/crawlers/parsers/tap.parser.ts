@@ -59,6 +59,7 @@ function parseOneWay(inner: any): ParsedFlight[] {
       const legs: FlightLeg[] = segs.map((s: any) => ({
         flightCode: `TP${s.flightNumber}`,
         cabin,
+        airline: 'TAP',
         aircraft: s.equipment,
         departure: { date: s.departureDate, airport: s.departureAirport },
         arrival:   { date: s.arrivalDate,   airport: s.arrivalAirport   },
@@ -135,6 +136,7 @@ function parseReturn(inner: any): ParsedFlight[] {
       const outLegs: FlightLeg[] = outSegs.map((s: any) => ({
         flightCode: `TP${s.flightNumber}`,
         cabin: outCabin,
+        airline: 'TAP',
         aircraft: s.equipment,
         departure: { date: s.departureDate, airport: s.departureAirport },
         arrival:   { date: s.arrivalDate,   airport: s.arrivalAirport   },
@@ -145,6 +147,7 @@ function parseReturn(inner: any): ParsedFlight[] {
       const inLegs: FlightLeg[] = (inFlight?.listSegment ?? []).map((s: any) => ({
         flightCode: `TP${s.flightNumber}`,
         cabin: inCabin,
+        airline: 'TAP',
         aircraft: s.equipment,
         departure: { date: s.departureDate, airport: s.departureAirport },
         arrival:   { date: s.arrivalDate,   airport: s.arrivalAirport   },
