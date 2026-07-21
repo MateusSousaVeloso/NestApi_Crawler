@@ -12,6 +12,17 @@ interface ExtractedFields {
   flightCode?: string;
   availableSeats: number;
   legs?: FlightLeg[];
+  airline: string;
+}
+
+// A Azul não manda nome de companhia em lugar nenhum da resposta, só o
+// código do operador real (identifier.operatedBy, que pode divergir do
+// carrierCode "AD" em voos com conexão operados por parceiro). Sem uma
+// tabela de nomes, usamos "Azul" pro código AD e o próprio código nos
+// demais casos — melhor que inventar um nome que não temos confirmação.
+function resolveOperatorName(code: string | undefined): string {
+  if (!code || code === 'AD') return 'Azul';
+  return code;
 }
 
 function extractJourneyFields(journey: any): ExtractedFields {
@@ -66,7 +77,7 @@ function extractJourneyFields(journey: any): ExtractedFields {
       return {
         flightCode: `${segId.carrierCode || ''}${segId.flightNumber || ''}`.trim(),
         cabin: 'ECONOMIC',
-        airline: 'Azul',
+        airline: resolveOperatorName(segId.operatedBy || segId.carrierCode),
         departure: {
           date: segId.std || '',
           airport: segId.departureStation || '',
@@ -80,7 +91,11 @@ function extractJourneyFields(journey: any): ExtractedFields {
     legs.sort((a, b) => (a.arrival.date || '').localeCompare(b.arrival.date || ''));
   }
 
-  return { uid, std, sta, depAirport, arrAirport, durHours, durMinutes, stops, flightCode, availableSeats, legs };
+  const airline = legs
+    ? [...new Set(legs.map((l) => l.airline).filter(Boolean))].join(' / ')
+    : resolveOperatorName(identifier.operatedBy || carrier);
+
+  return { uid, std, sta, depAirport, arrAirport, durHours, durMinutes, stops, flightCode, availableSeats, legs, airline };
 }
 
 function parseMilesResponse(data: any): { flight: ParsedFlight; uid: string }[] {
@@ -102,7 +117,7 @@ function parseMilesResponse(data: any): { flight: ParsedFlight; uid: string }[] 
         const fields = extractJourneyFields(journey);
         const flight: ParsedFlight = {
           uid: fields.uid,
-          airline: 'Azul',
+          airline: fields.airline,
           cabin: 'ECONOMIC',
           availableSeats: fields.availableSeats,
           stops: fields.stops,
