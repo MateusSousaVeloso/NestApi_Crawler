@@ -15,13 +15,6 @@ export function parseSmilesResponse(data: any): ParsedFlight[] {
     const rawMiles = defaultFare.miles || 0;
     const miles = rawMiles || undefined;
 
-    const cashFare = fareList.find((f) => f.type === 'MONEY');
-    let price: number | undefined;
-    if (cashFare) {
-      const tax = Number(cashFare.g3?.costTax ?? 0);
-      price = Math.round((Number(cashFare.money || 0) + tax) * 100) / 100;
-    }
-
     const dep = flight.departure || {};
     const arr = flight.arrival || {};
     const depAirportCode = dep.airport?.code || '';
@@ -101,8 +94,6 @@ export function parseSmilesResponse(data: any): ParsedFlight[] {
       },
       duration: { hours: durHours, minutes: durMinutes },
       miles,
-      price,
-      currency: 'BRL',
     };
 
     if (legs) parsed.legs = legs;
